@@ -230,6 +230,7 @@ class LobsterL1Service {
     this.contracts = {}
     this.marketFlow = {}        // { 'canton:silk': 0, ... } 供需净流量
     this.intels = {}            // { intelId: IntelObject } 酒馆情报
+    this.senderPlayers = {}     // { fromOpenid: gameOpenid } 发送者→玩家映射，防止重复入驻
     this.lastDecayTime = Date.now()
   }
 
@@ -459,12 +460,6 @@ class LobsterL1Service {
   }
 
   processAction(action, params, fromOpenid) {
-    // 对需要鉴权的操作，校验 payload 中的 openid 与 OceanBus 信封中的发送者一致
-    const PUBLIC_ACTIONS = new Set(['ping', 'enroll', 'get_city', 'lookup', 'capabilities'])
-    if (!PUBLIC_ACTIONS.has(action) && params.openid && fromOpenid && params.openid !== fromOpenid) {
-      return { code: 401, msg: '身份不匹配：消息发送者与声明的 openid 不一致' }
-    }
-
     switch (action) {
       case 'ping':
         return { status: 'ok', timestamp: Date.now(), service: 'lobster-l1', agentId: this.myAgentId, openid: this.myOpenid }
@@ -513,13 +508,28 @@ class LobsterL1Service {
     const initialGold = 20000  // 固定初始金币，不接受客户端传值（防作弊）
     if (!openid) return { code: 1, msg: '缺少 openid' }
 
+    // 已入驻：更新发送者映射，返回已有船长（不新建）
     if (this.players[openid]) {
-      // 已入驻：允许更新名称；无 token 则补发（v1.1 升级兼容）
+      this.senderPlayers[fromOpenid] = openid
       if (captainName) this.players[openid].name = captainName
       if (!this.players[openid].captainToken) {
         this.players[openid].captainToken = require('crypto').randomBytes(16).toString('hex')
       }
+      console.log('[L1] 船长归港:', openid.substring(0, 12), '→', this.players[openid].name)
       return { doc: this.players[openid], captainToken: this.players[openid].captainToken }
+    }
+
+    // 同一个 OceanBus 发送者已有船长 → 拒绝新建，返回已有船长
+    if (fromOpenid && this.senderPlayers[fromOpenid]) {
+      const existingOpenid = this.senderPlayers[fromOpenid]
+      const existingPlayer = this.players[existingOpenid]
+      if (existingPlayer) {
+        console.log('[L1] 拒绝新建船长: 发送者已有船长', existingOpenid.substring(0, 12), '→', existingPlayer.name)
+        if (!existingPlayer.captainToken) {
+          existingPlayer.captainToken = require('crypto').randomBytes(16).toString('hex')
+        }
+        return { doc: existingPlayer, captainToken: existingPlayer.captainToken }
+      }
     }
 
     // 随机出生城市
@@ -552,7 +562,8 @@ class LobsterL1Service {
       captainToken
     }
     this.players[openid] = player
-    console.log('[L1] 新玩家入驻:', openid, ', 金币:', initialGold, ', 出生港:', birthCity)
+    this.senderPlayers[fromOpenid] = openid
+    console.log('[L1] 新玩家入驻:', openid.substring(0, 12), ', 金币:', initialGold, ', 出生港:', birthCity)
     return { doc: player, captainToken }
   }
 

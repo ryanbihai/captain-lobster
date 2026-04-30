@@ -61,7 +61,11 @@
       "Read(//c/c/IT/00 工具和探索/lobster-captain/**)",
       "Bash(git init *)",
       "Bash(gh repo *)",
-      "Bash(git remote *)"
+      "Bash(git remote *)",
+      "Bash(git rm *)",
+      "Bash(rm -rf ai-backend-template/.git skills/captain-lobster/.git)",
+      "Bash(grep -E \"\\\\.env$|credentials|secret\")",
+      "Bash(GIT_ASKPASS=true git push *)"
     ]
   }
 }
