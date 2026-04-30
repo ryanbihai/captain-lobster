@@ -232,6 +232,7 @@ class CaptainLobster {
     const gameOpenid = this.state.openid || this.oceanBus.openid
     const enrollResult = await this.sendToL1('enroll', {
       openid: gameOpenid,
+      agent_id: this.oceanBus.agentId || this.state.playerId,
       publicKey: this.keyStore.stripPemHeader(this.state.keyPair.publicKey),
       initialGold: this.config.initialGold,
       captainName: this.state.captainName
@@ -396,13 +397,15 @@ class CaptainLobster {
       }
       const reEnroll = await this.sendToL1('enroll', {
         openid: this.state.openid,
+        agent_id: this.oceanBus.agentId || this.state.playerId,
         publicKey: pubKey,
         initialGold: this.state.gold,
         captainName: this.state.captainName
       })
       if (reEnroll.success) {
         // 重试原操作，标记 _retry 防止再次重试
-        console.log('[Skill] 重新入驻成功，重试', action)
+        console.log('[Skill] 重新入驻成功，重试', action, '新token:', (this.state.captainToken||'').substring(0,16)+'...')
+        // 重试之前先确保 token 已同步
         return await this.sendToL1(action, { ...params, _retry: true })
       }
     }
