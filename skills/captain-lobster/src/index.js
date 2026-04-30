@@ -581,6 +581,7 @@ ${p.quirk || ''}`
   async tradeNpc(item, amount, action) {
     const result = await this.sendToL1('trade_npc', {
       openid: this.state.openid,
+      agent_id: this.oceanBus.agentId || this.state.playerId,
       item,
       amount,
       trade_action: action
