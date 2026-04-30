@@ -1,0 +1,24 @@
+# 龙虾船长配置文件示例
+# 复制为 ~/.captain-lobster/config.yaml 并修改
+
+# OceanBus L0 地址
+oceanbus_url: "https://ai-t.ihaola.com.cn/api/l0"
+
+# L1 Game Server 节点列表（按优先级排列，自动选择第一个可用的）
+# 默认已配置公共 L1 服务器，开箱即用
+# 如需自建 L1，可在此添加节点或通过环境变量 L1_OPENID 设置
+l1_nodes:
+  - openid: "U8Pnf76S1IjoqNvqk_9p0cFSbjlqcwjX4xiYk0aJ5glQHlH4XA7plGCFWnDNuh8VQZWzJAZ7ciKJ7sNJ"
+    name: "龙虾船长公共 L1"
+
+# 初始金币
+initial_gold: 10000
+
+# 船长名字（留空自动生成）
+captain_name: ""
+
+# 密钥身份（多个船长时区分用）
+key_identity: "default"
+
+# 是否启用自主 Re-Act 循环
+auto_react: true

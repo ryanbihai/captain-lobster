@@ -1,0 +1,934 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "龙虾船长 L1 游戏引擎 API",
+    "description": "《龙虾船长 Captain Lobster》零信任清算中心 API 文档",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "/api/lobster",
+      "description": "LobsterSvc 路由根路径"
+    }
+  ],
+  "tags": [
+    {
+      "name": "LobsterSvc",
+      "description": "龙虾船长 L1 游戏引擎"
+    },
+    {
+      "name": "认证入驻",
+      "description": "玩家入驻相关接口"
+    },
+    {
+      "name": "地图数据",
+      "description": "城市信息查询接口"
+    },
+    {
+      "name": "玩家行动",
+      "description": "移动和意向牌更新接口"
+    },
+    {
+      "name": "交易系统",
+      "description": "NPC 和 P2P 交易接口"
+    },
+    {
+      "name": "OceanBus L0",
+      "description": "消息通信与 Agent 寻址接口"
+    },
+    {
+      "name": "交易合约",
+      "description": "异步交易合约管理接口"
+    }
+  ],
+  "paths": {
+    "/api/lobster/enroll": {
+      "post": {
+        "tags": ["认证入驻"],
+        "summary": "玩家入驻",
+        "description": "新玩家首次入驻游戏，登记初始资金与本地公钥",
+        "operationId": "enrollPlayer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["openid", "publicKey"],
+                "properties": {
+                  "openid": {
+                    "type": "string",
+                    "description": "玩家唯一标识",
+                    "example": "openid_player_001"
+                  },
+                  "publicKey": {
+                    "type": "string",
+                    "description": "Ed25519 公钥（Base64 编码）",
+                    "example": "MCowBQYDK2VwAyEAXXX..."
+                  },
+                  "initialGold": {
+                    "type": "number",
+                    "description": "初始金币（默认 10000）",
+                    "example": 10000
+                  }
+                }
+              },
+              "example": {
+                "openid": "openid_player_001",
+                "publicKey": "MCowBQYDK2VwAyEAXXX...",
+                "initialGold": 10000
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "入驻成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "doc": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "openid": { "type": "string" },
+                            "gold": { "type": "number" },
+                            "currentCity": { "type": "string" },
+                            "status": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/city/{id}": {
+      "get": {
+        "tags": ["地图数据"],
+        "summary": "获取城市信息",
+        "description": "返回指定城市的当前 AMM 物价表、库存状态、停靠的玩家列表及他们的供需意向",
+        "operationId": "getCity",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "城市 ID",
+            "schema": {
+              "type": "string",
+              "enum": ["canton", "calicut", "zanzibar", "alexandria", "venice", "lisbon", "london", "amsterdam", "istanbul", "genoa"]
+            },
+            "example": "canton"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "获取成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "city": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "name": { "type": "string" },
+                            "prices": {
+                              "type": "object",
+                              "description": "商品物价表",
+                              "example": {
+                                "silk": { "buy": 550, "sell": 495 },
+                                "pearl": { "buy": 880, "sell": 792 },
+                                "tea": { "buy": 440, "sell": 396 }
+                              }
+                            },
+                            "stock": {
+                              "type": "object",
+                              "description": "城市库存状态"
+                            }
+                          }
+                        },
+                        "players": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "openid": { "type": "string" },
+                              "intent": { "type": "string" },
+                              "status": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/action/move": {
+      "post": {
+        "tags": ["玩家行动"],
+        "summary": "移动到新城市",
+        "description": "申请移动到新城市，服务器更新玩家坐标。首次调用状态变为 sailing，第二次调用到达目标城市",
+        "operationId": "movePlayer",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["openid", "targetCity"],
+                "properties": {
+                  "openid": {
+                    "type": "string",
+                    "description": "玩家唯一标识",
+                    "example": "openid_player_001"
+                  },
+                  "targetCity": {
+                    "type": "string",
+                    "description": "目标城市 ID",
+                    "example": "calicut"
+                  }
+                }
+              },
+              "example": {
+                "openid": "openid_player_001",
+                "targetCity": "calicut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "移动成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "status": {
+                          "type": "string",
+                          "description": "玩家状态：sailing(航行中)/docked(停泊)",
+                          "example": "sailing"
+                        },
+                        "targetCity": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/action/intent": {
+      "post": {
+        "tags": ["玩家行动"],
+        "summary": "更新供需意向牌",
+        "description": "更新自己在当前城市的供需意向牌（最大 140 字符）",
+        "operationId": "updateIntent",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["openid"],
+                "properties": {
+                  "openid": {
+                    "type": "string",
+                    "description": "玩家唯一标识",
+                    "example": "openid_player_001"
+                  },
+                  "intent": {
+                    "type": "string",
+                    "description": "供需意向牌内容（最大 140 字符）",
+                    "example": "急收 50 箱茶叶，骗子绕道"
+                  }
+                }
+              },
+              "example": {
+                "openid": "openid_player_001",
+                "intent": "急收 50 箱茶叶，骗子绕道"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "intent": { "type": "string" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/trade/npc": {
+      "post": {
+        "tags": ["交易系统"],
+        "summary": "NPC 系统交易",
+        "description": "按照系统当前 AMM 挂牌价，与 NPC 立即成交（秒结算）",
+        "operationId": "tradeWithNpc",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["openid", "item", "amount", "action"],
+                "properties": {
+                  "openid": {
+                    "type": "string",
+                    "description": "玩家唯一标识",
+                    "example": "openid_player_001"
+                  },
+                  "item": {
+                    "type": "string",
+                    "description": "商品类型",
+                    "enum": ["silk", "pearl", "tea", "porcelain", "spice", "perfume", "gem", "ivory", "cotton", "coffee", "pepper"],
+                    "example": "silk"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "description": "交易数量",
+                    "example": 50
+                  },
+                  "action": {
+                    "type": "string",
+                    "description": "交易动作",
+                    "enum": ["buy", "sell"],
+                    "example": "buy"
+                  }
+                }
+              },
+              "example": {
+                "openid": "openid_player_001",
+                "item": "silk",
+                "amount": 50,
+                "action": "buy"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "交易成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "trade": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "type": { "type": "string" },
+                            "item": { "type": "string" },
+                            "amount": { "type": "number" },
+                            "price": { "type": "number" },
+                            "totalPrice": { "type": "number" }
+                          }
+                        },
+                        "playerGold": { "type": "number" },
+                        "cargo": { "type": "object" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/trade/p2p": {
+      "post": {
+        "tags": ["交易系统"],
+        "summary": "P2P 双签名交易",
+        "description": "提交双签名的交易契约，服务器验签后原子执行资产划转",
+        "operationId": "tradeP2P",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["trade_id", "buyer_openid", "seller_openid", "item", "amount", "total_price", "buyer_signature", "seller_signature"],
+                "properties": {
+                  "trade_id": {
+                    "type": "string",
+                    "description": "交易唯一 ID",
+                    "example": "uuid-1234"
+                  },
+                  "buyer_openid": {
+                    "type": "string",
+                    "description": "买方 openid",
+                    "example": "openid_player_001"
+                  },
+                  "seller_openid": {
+                    "type": "string",
+                    "description": "卖方 openid",
+                    "example": "openid_player_002"
+                  },
+                  "item": {
+                    "type": "string",
+                    "description": "商品类型",
+                    "enum": ["silk", "pearl", "tea", "porcelain", "spice", "perfume", "gem", "ivory", "cotton", "coffee", "pepper"],
+                    "example": "pearl"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "description": "交易数量",
+                    "example": 50
+                  },
+                  "total_price": {
+                    "type": "number",
+                    "description": "总成交价（金币）",
+                    "example": 30000
+                  },
+                  "buyer_signature": {
+                    "type": "string",
+                    "description": "买方 Ed25519 签名（Base64）",
+                    "example": "base64_sig_buyer_xxx"
+                  },
+                  "seller_signature": {
+                    "type": "string",
+                    "description": "卖方 Ed25519 签名（Base64）",
+                    "example": "base64_sig_seller_xxx"
+                  }
+                }
+              },
+              "example": {
+                "trade_id": "uuid-1234",
+                "buyer_openid": "openid_player_001",
+                "seller_openid": "openid_player_002",
+                "item": "pearl",
+                "amount": 50,
+                "total_price": 50000,
+                "buyer_signature": "base64_sig_buyer_xxx",
+                "seller_signature": "base64_sig_seller_xxx"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "交易成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "trade": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "type": { "type": "string" },
+                            "buyerOpenid": { "type": "string" },
+                            "sellerOpenid": { "type": "string" },
+                            "item": { "type": "string" },
+                            "amount": { "type": "number" },
+                            "price": { "type": "number" },
+                            "totalPrice": { "type": "number" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/oceanbus/register": {
+      "post": {
+        "tags": ["OceanBus L0"],
+        "summary": "注册 OceanBus Agent",
+        "description": "为玩家注册 OceanBus Agent，获取唯一的 agent_code 用于消息通信",
+        "operationId": "registerOceanBus",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["playerId"],
+                "properties": {
+                  "playerId": {
+                    "type": "string",
+                    "description": "玩家业务 ID",
+                    "example": "player_001"
+                  }
+                }
+              },
+              "example": {
+                "playerId": "player_001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "注册成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "agentCode": { "type": "string", "description": "Agent 唯一标识" },
+                        "openid": { "type": "string", "description": "OceanBus OpenID" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/oceanbus/messages/send": {
+      "post": {
+        "tags": ["OceanBus L0"],
+        "summary": "发送 OceanBus 消息",
+        "description": "向指定 Agent 发送加密消息（砍价、协商、询价等）",
+        "operationId": "sendOceanMessage",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["playerId", "toAgentCode", "content"],
+                "properties": {
+                  "playerId": {
+                    "type": "string",
+                    "description": "发送方玩家业务 ID",
+                    "example": "player_001"
+                  },
+                  "toAgentCode": {
+                    "type": "string",
+                    "description": "接收方 Agent Code",
+                    "example": "26925"
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "消息内容",
+                    "example": "600金币太贵了，500金币成交如何？"
+                  }
+                }
+              },
+              "example": {
+                "playerId": "player_001",
+                "toAgentCode": "26925",
+                "content": "600金币太贵了，500金币成交如何？"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "发送成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/oceanbus/messages/sync": {
+      "get": {
+        "tags": ["OceanBus L0"],
+        "summary": "同步 OceanBus 消息",
+        "description": "拉取玩家信箱中的新消息（砍价、协商、询价等）",
+        "operationId": "syncOceanMessages",
+        "parameters": [
+          {
+            "name": "playerId",
+            "in": "query",
+            "required": true,
+            "description": "玩家业务 ID",
+            "schema": {
+              "type": "string"
+            },
+            "example": "player_001"
+          },
+          {
+            "name": "sinceSeq",
+            "in": "query",
+            "required": false,
+            "description": "从指定序列号开始拉取（默认为 0）",
+            "schema": {
+              "type": "number",
+              "default": 0
+            },
+            "example": 0
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "同步成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "messages": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "msg_id": { "type": "string" },
+                              "from_openid": { "type": "string" },
+                              "content": { "type": "string" },
+                              "timestamp": { "type": "number" }
+                            }
+                          }
+                        },
+                        "nextSeq": { "type": "number", "description": "下次同步时的 since_seq" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/contract/create": {
+      "post": {
+        "tags": ["交易合约"],
+        "summary": "创建交易合约",
+        "description": "创建 P2P 交易合约。卖方货物会在合约创建时冻结，买家抵达后交割",
+        "operationId": "createContract",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["buyerOpenid", "sellerOpenid", "item", "amount", "price", "deliveryCity"],
+                "properties": {
+                  "buyerOpenid": {
+                    "type": "string",
+                    "description": "买方 openid",
+                    "example": "openid_player_001"
+                  },
+                  "sellerOpenid": {
+                    "type": "string",
+                    "description": "卖方 openid",
+                    "example": "openid_player_002"
+                  },
+                  "item": {
+                    "type": "string",
+                    "description": "商品类型",
+                    "enum": ["silk", "pearl", "tea", "porcelain", "spice", "perfume", "gem", "ivory", "cotton", "coffee", "pepper"],
+                    "example": "silk"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "description": "交易数量",
+                    "example": 10
+                  },
+                  "price": {
+                    "type": "number",
+                    "description": "单价（金币/箱）",
+                    "example": 500
+                  },
+                  "deliveryCity": {
+                    "type": "string",
+                    "description": "交割城市 ID",
+                    "example": "venice"
+                  }
+                }
+              },
+              "example": {
+                "buyerOpenid": "openid_player_001",
+                "sellerOpenid": "openid_player_002",
+                "item": "silk",
+                "amount": 10,
+                "price": 500,
+                "deliveryCity": "venice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "contract": {
+                          "type": "object",
+                          "properties": {
+                            "id": { "type": "string" },
+                            "buyerOpenid": { "type": "string" },
+                            "sellerOpenid": { "type": "string" },
+                            "item": { "type": "string" },
+                            "amount": { "type": "number" },
+                            "price": { "type": "number" },
+                            "totalPrice": { "type": "number" },
+                            "deliveryCity": { "type": "string" },
+                            "status": { "type": "string" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/contract/cancel": {
+      "post": {
+        "tags": ["交易合约"],
+        "summary": "取消合约",
+        "description": "取消交易合约（仅在状态为 pending 时可取消），货物返还卖方",
+        "operationId": "cancelContract",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["contractId", "openid"],
+                "properties": {
+                  "contractId": {
+                    "type": "string",
+                    "description": "合约 ID",
+                    "example": "contract_xxx"
+                  },
+                  "openid": {
+                    "type": "string",
+                    "description": "操作者 openid（买方或卖方）",
+                    "example": "openid_player_001"
+                  }
+                }
+              },
+              "example": {
+                "contractId": "contract_xxx",
+                "openid": "openid_player_001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "取消成功"
+          }
+        }
+      }
+    },
+    "/api/lobster/contract/list": {
+      "get": {
+        "tags": ["交易合约"],
+        "summary": "查询合约列表",
+        "description": "查询与玩家相关的交易合约列表",
+        "operationId": "listContracts",
+        "parameters": [
+          {
+            "name": "openid",
+            "in": "query",
+            "required": true,
+            "description": "玩家 openid",
+            "schema": {
+              "type": "string"
+            },
+            "example": "openid_player_001"
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "description": "合约状态过滤",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "seller_arrived", "completed", "cancelled", "failed"]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "查询成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "contracts": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": { "type": "string" },
+                              "buyerOpenid": { "type": "string" },
+                              "sellerOpenid": { "type": "string" },
+                              "item": { "type": "string" },
+                              "amount": { "type": "number" },
+                              "price": { "type": "number" },
+                              "totalPrice": { "type": "number" },
+                              "deliveryCity": { "type": "string" },
+                              "status": { "type": "string" },
+                              "sellerArrived": { "type": "boolean" },
+                              "buyerArrived": { "type": "boolean" },
+                              "settleAt": { "type": "string" }
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/lobster/action/arrive": {
+      "post": {
+        "tags": ["玩家行动"],
+        "summary": "抵达并检测交割",
+        "description": "玩家抵达城市后调用，检测并执行合约交割。卖家先到则卸货，买家后到则装船。卖家卸货后最多等3小时，超时强制交割",
+        "operationId": "arriveAndSettle",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["openid"],
+                "properties": {
+                  "openid": {
+                    "type": "string",
+                    "description": "玩家 openid",
+                    "example": "openid_player_001"
+                  }
+                }
+              },
+              "example": {
+                "openid": "openid_player_001"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "处理成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": { "type": "number", "example": 0 },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "settleResults": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "contractId": { "type": "string" },
+                              "result": { "type": "string", "description": "seller_arrived|buyer_too_early|success|force_settle|expired" },
+                              "reason": { "type": "string" }
+                            }
+                          }
+                        },
+                        "playerGold": { "type": "number" },
+                        "cargo": { "type": "object" },
+                        "cargoUsed": { "type": "number" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

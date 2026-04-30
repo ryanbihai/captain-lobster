@@ -1,0 +1,190 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "OrderSvc OpenAPI",
+    "version": "1.0.0",
+    "description": "02-OrderSvc 的标准前后端接口交界契约与可用 Mock 示例数据。支持直导 APIFox/Swagger。"
+  },
+  "servers": [
+    {
+      "url": "http://127.0.0.1:17019",
+      "description": "本地开发网关"
+    }
+  ],
+  "paths": {
+    "/api/orders/create": {
+      "post": {
+        "summary": "创建商品订单",
+        "tags": [
+          "OrderSvc"
+        ],
+        "description": "接受来自客户端的参数下发创建订单据记录",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "example": "USER-9988221",
+                    "description": "所属用户的外部唯一编码"
+                  },
+                  "productId": {
+                    "type": "string",
+                    "example": "SKU-PRO-001X",
+                    "description": "选定的实物级或虚拟商品规格"
+                  },
+                  "amount": {
+                    "type": "number",
+                    "example": 199.98,
+                    "description": "入账的有效支付订单扣减额度(元)"
+                  }
+                },
+                "required": [
+                  "userId",
+                  "productId",
+                  "amount"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "系统创建落库指令下达成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number",
+                      "example": 0
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "doc": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "example": "8fa19ee309bd4b31"
+                            },
+                            "userId": {
+                              "type": "string",
+                              "example": "USER-9988221"
+                            },
+                            "productId": {
+                              "type": "string",
+                              "example": "SKU-PRO-001X"
+                            },
+                            "amount": {
+                              "type": "number",
+                              "example": 199.98
+                            },
+                            "status": {
+                              "type": "string",
+                              "example": "pending"
+                            },
+                            "deleted": {
+                              "type": "boolean",
+                              "example": false
+                            },
+                            "createDate": {
+                              "type": "string",
+                              "example": "2026-03-25T16:30:00.000Z"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/orders/get": {
+      "get": {
+        "summary": "检索订单底表详情",
+        "tags": [
+          "OrderSvc"
+        ],
+        "description": "根据下发的流水 ID 精准查找商品清单信息",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "query",
+            "required": true,
+            "description": "目标详情的主键流水 ID",
+            "schema": {
+              "type": "string",
+              "example": "8fa19ee309bd4b31"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功取回模型包裹的数据集",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "number",
+                      "example": 0
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "doc": {
+                          "type": "object",
+                          "properties": {
+                            "id": {
+                              "type": "string",
+                              "example": "8fa19ee309bd4b31"
+                            },
+                            "userId": {
+                              "type": "string",
+                              "example": "USER-9988221"
+                            },
+                            "productId": {
+                              "type": "string",
+                              "example": "SKU-PRO-001X"
+                            },
+                            "amount": {
+                              "type": "number",
+                              "example": 199.98
+                            },
+                            "status": {
+                              "type": "string",
+                              "example": "pending"
+                            },
+                            "deleted": {
+                              "type": "boolean",
+                              "example": false
+                            },
+                            "createDate": {
+                              "type": "string",
+                              "example": "2026-03-25T16:30:00.000Z"
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

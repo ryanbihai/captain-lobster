@@ -1,0 +1,7 @@
+{
+  "appid": "core",
+  "appSecret": "secret-str",
+  "crypto": {
+    "key": "CORE_SERVICE_SECRET_KEY_2026"
+  }
+}

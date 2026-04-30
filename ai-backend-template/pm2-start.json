@@ -1,0 +1,22 @@
+{
+  "apps": [
+    {
+      "name": "ai-backend-api",
+      "script": "src/server.js",
+      "instances": "max",
+      "exec_mode": "cluster",
+      "env_production": {
+        "NODE_ENV": "production",
+        "PORT": 17019
+      }
+    },
+    {
+      "name": "ai-backend-task",
+      "script": "src/task.js",
+      "instances": 1,
+      "env_production": {
+        "NODE_ENV": "production"
+      }
+    }
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "apps": [
+    {
+      "name": "ai-backend-api-local",
+      "script": "src/server.js",
+      "env": {
+        "NODE_ENV": "local",
+        "PORT": 17019
+      },
+      "watch": ["src", "config"],
+      "ignore_watch": ["node_modules", "data", "test", "logs"]
+    },
+    {
+      "name": "ai-backend-task-local",
+      "script": "src/task.js",
+      "env": {
+        "NODE_ENV": "local"
+      },
+      "watch": ["src/task.js", "src/apps"],
+      "ignore_watch": ["node_modules", "data", "test", "logs"]
+    }
+  ]
+}

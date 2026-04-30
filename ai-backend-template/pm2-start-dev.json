@@ -1,0 +1,39 @@
+{
+  "apps": [
+    {
+      "name": "ai-backend-api-dev-17019",
+      "script": "src/server.js",
+      "env": {
+        "NODE_ENV": "development",
+        "PORT": 17019
+      },
+      "watch": [
+        "src",
+        "config"
+      ],
+      "ignore_watch": [
+        "node_modules",
+        "data",
+        "test",
+        "logs"
+      ]
+    },
+    {
+      "name": "ai-backend-task-dev-17019",
+      "script": "src/task.js",
+      "env": {
+        "NODE_ENV": "development"
+      },
+      "watch": [
+        "src/task.js",
+        "src/apps"
+      ],
+      "ignore_watch": [
+        "node_modules",
+        "data",
+        "test",
+        "logs"
+      ]
+    }
+  ]
+}
