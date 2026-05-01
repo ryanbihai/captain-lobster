@@ -23,23 +23,22 @@ const SAILING_MULTIPLIER = (parseFloat(process.env.L1_SAILING_MULTIPLIER) || 1) 
 
 const CITIES = {
   canton: { id: 'canton', name: '广州', lat: 23.13, lng: 113.26, specialty: ['silk', 'tea', 'porcelain'] },
-  calicut: { id: 'calicut', name: '卡利卡特', lat: 11.25, lng: 75.78, specialty: ['spice', 'pepper'] },
-  zanzibar: { id: 'zanzibar', name: '桑给巴尔', lat: -6.16, lng: 39.20, specialty: ['ivory', 'pearl'] },
-  alexandria: { id: 'alexandria', name: '亚历山大', lat: 31.20, lng: 29.92, specialty: ['cotton', 'perfume'] },
+  calicut: { id: 'calicut', name: '卡利卡特', lat: 11.25, lng: 75.78, specialty: ['spice', 'pepper', 'cotton'] },
+  zanzibar: { id: 'zanzibar', name: '桑给巴尔', lat: -6.16, lng: 39.20, specialty: ['ivory', 'spice', 'pearl'] },
+  alexandria: { id: 'alexandria', name: '亚历山大', lat: 31.20, lng: 29.92, specialty: ['spice', 'perfume'] },
   venice: { id: 'venice', name: '威尼斯', lat: 45.44, lng: 12.32, specialty: ['silk', 'perfume', 'pearl'] },
   lisbon: { id: 'lisbon', name: '里斯本', lat: 38.72, lng: -9.14, specialty: ['spice', 'gem'] },
   london: { id: 'london', name: '伦敦', lat: 51.51, lng: -0.13, specialty: ['tea', 'gem', 'pearl'] },
-  amsterdam: { id: 'amsterdam', name: '阿姆斯特丹', lat: 52.37, lng: 4.90, specialty: ['porcelain', 'gem'] },
-  istanbul: { id: 'istanbul', name: '伊斯坦布尔', lat: 41.01, lng: 28.98, specialty: ['spice', 'cotton', 'perfume'] },
-  genoa: { id: 'genoa', name: '热那亚', lat: 44.41, lng: 8.94, specialty: ['silk', 'perfume'] }
+  amsterdam: { id: 'amsterdam', name: '阿姆斯特丹', lat: 52.37, lng: 4.90, specialty: ['spice', 'coffee', 'gem'] },
+  istanbul: { id: 'istanbul', name: '伊斯坦布尔', lat: 41.01, lng: 28.98, specialty: ['spice', 'silk', 'perfume'] },
+  genoa: { id: 'genoa', name: '热那亚', lat: 44.41, lng: 8.94, specialty: ['silk', 'spice', 'pearl'] }
 }
 
 const BASE_PRICES = {
-  silk: 400, tea: 350, porcelain: 380, spice: 600, pearl: 750,
-  perfume: 800, gem: 1200, ivory: 500, cotton: 320, coffee: 450, pepper: 280
+  silk: 1500, tea: 100, porcelain: 380, spice: 420, pepper: 60, pearl: 2600,
+  perfume: 1900, gem: 3800, ivory: 550, cotton: 85, coffee: 120
 }
 
-const LUXURY_ITEMS = ['silk', 'pearl', 'perfume', 'gem']
 const AMM_SPREAD = 0.10
 const SHIP_CAPACITY = 100
 const SETTLE_HOURS = 3
@@ -198,9 +197,6 @@ function getItemPrice(item, cityId) {
   const city = CITIES[cityId]
   if (city && city.specialty && city.specialty.includes(item)) {
     price = Math.round(price * 0.8)
-  }
-  if (LUXURY_ITEMS.includes(item)) {
-    price = Math.round(price * 1.2)
   }
   return price
 }

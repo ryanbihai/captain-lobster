@@ -3,109 +3,258 @@
  * @description 龙虾船长 L1 游戏引擎业务逻辑层。
  *
  * 核心设计：
- * 1. 城市坐标系统：基于经纬度计算航行时间
- * 2. 商品特色化：产地低价、消费地高价
- * 3. 船只装载量限制：每艘船只能装载固定货物
- * 4. 交易合约：异步合约机制，卖家卸货 + 买家抵达后自动交割
+ * 1. 三级商品定价：运力瓶颈型（低价高毛利%）/ 双约束型 / 资金瓶颈型（高价低毛利%）
+ * 2. 动态价格：城市库存随交易波动，库存越少价格越高
+ * 3. 事件驱动：随机事件（节日/封锁/风暴等）临时扰动价格
+ * 4. 信息不对称：价格仅当前港口可见
+ * 5. 城市坐标系统：基于经纬度计算航行时间
+ * 6. 交易合约：异步合约机制，卖家卸货 + 买家抵达后自动交割
  */
 
 const { INFO, ERROR } = require('../../lib/logSvc.js')(__filename)
 const { Service } = require('../../lib/servicelib')
-const { Player, Trade, City, Contract } = require('./models')
+const { Player, Trade, Contract } = require('./models')
+const cache = require('./cache')
 const util = require('../../lib/util')
-const crypto = require('crypto')
 
 const service = new Service({ __dirname, __filename, module })
 
-/**
- * 城市配置（含坐标）
- * 坐标使用 [纬度, 经度]
- * 航行时间 = 球面距离(km) / 100 分钟
- */
+// ═══════════════════════════════════════════════════════════════
+// 城市配置（含坐标）
+// 定价逻辑：
+//   Tier 1 运力瓶颈型 (cotton/pepper/tea/coffee): 低价 50-280, 高毛利%, 舱位先满
+//   Tier 2 双约束型   (porcelain/spice/ivory):     中价 300-1200
+//   Tier 3 资金瓶颈型 (silk/perfume/pearl/gem):     高价 1200-7500, 低毛利%, 资金先干
+// 坐标使用 [纬度, 经度]，航行时间 = 球面距离(km) / 500 分钟
+// ═══════════════════════════════════════════════════════════════
+
 const CITIES = [
   {
     id: 'canton', name: '广州', region: '中国',
     coords: [23.1, 113.3],
-    basePrice: { silk: 400, tea: 350, porcelain: 380, spice: 600, pearl: 750, perfume: 800, gem: 1200, ivory: 500, cotton: 320, coffee: 450 },
+    basePrice: { silk: 1500, tea: 100, porcelain: 380, spice: 850, pepper: 190, pearl: 4800, perfume: 3600, gem: 7200, ivory: 1050, cotton: 200, coffee: 280 },
     specialty: ['silk', 'tea', 'porcelain']
   },
   {
     id: 'calicut', name: '卡利卡特', region: '印度',
     coords: [11.3, 75.8],
-    basePrice: { silk: 650, tea: 480, porcelain: 580, spice: 380, pepper: 320, pearl: 850, perfume: 950, gem: 1300, ivory: 550, cotton: 350, coffee: 420 },
-    specialty: ['spice', 'pepper']
+    basePrice: { silk: 2300, tea: 210, porcelain: 680, spice: 420, pepper: 60, pearl: 2800, perfume: 3300, gem: 4800, ivory: 850, cotton: 85, coffee: 210 },
+    specialty: ['spice', 'pepper', 'cotton']
   },
   {
     id: 'zanzibar', name: '桑给巴尔', region: '东非',
     coords: [-6.2, 39.3],
-    basePrice: { silk: 800, tea: 520, porcelain: 700, spice: 580, pearl: 950, perfume: 1100, gem: 1450, ivory: 380, cotton: 380, coffee: 480 },
+    basePrice: { silk: 2800, tea: 240, porcelain: 750, spice: 520, pepper: 110, pearl: 2600, perfume: 3500, gem: 4200, ivory: 550, cotton: 160, coffee: 120 },
     specialty: ['ivory', 'spice', 'pearl']
   },
   {
     id: 'alexandria', name: '亚历山大', region: '埃及',
     coords: [31.2, 29.9],
-    basePrice: { silk: 720, tea: 500, porcelain: 650, spice: 520, pearl: 820, perfume: 980, gem: 1250, ivory: 480, cotton: 360, coffee: 450 },
+    basePrice: { silk: 2500, tea: 230, porcelain: 700, spice: 480, pepper: 130, pearl: 3000, perfume: 1900, gem: 4500, ivory: 680, cotton: 90, coffee: 170 },
     specialty: ['spice', 'perfume']
   },
   {
     id: 'venice', name: '威尼斯', region: '欧洲',
     coords: [45.4, 12.3],
-    basePrice: { silk: 580, tea: 500, porcelain: 720, spice: 560, pearl: 850, perfume: 900, gem: 1300, ivory: 560, cotton: 370, coffee: 460 },
+    basePrice: { silk: 1800, tea: 250, porcelain: 720, spice: 600, pepper: 160, pearl: 3200, perfume: 2100, gem: 5000, ivory: 750, cotton: 150, coffee: 200 },
     specialty: ['silk', 'perfume', 'pearl']
   },
   {
     id: 'lisbon', name: '里斯本', region: '葡萄牙',
     coords: [38.7, -9.1],
-    basePrice: { silk: 820, tea: 580, porcelain: 820, spice: 620, pearl: 920, perfume: 1080, gem: 1420, ivory: 680, cotton: 440, coffee: 530 },
+    basePrice: { silk: 2800, tea: 260, porcelain: 820, spice: 650, pepper: 175, pearl: 4200, perfume: 3200, gem: 3800, ivory: 850, cotton: 180, coffee: 240 },
     specialty: ['spice', 'gem']
   },
   {
     id: 'london', name: '伦敦', region: '英格兰',
     coords: [51.5, -0.1],
-    basePrice: { silk: 880, tea: 600, porcelain: 880, spice: 680, pearl: 880, perfume: 1050, gem: 1380, ivory: 720, cotton: 480, coffee: 500 },
+    basePrice: { silk: 3200, tea: 270, porcelain: 900, spice: 750, pepper: 190, pearl: 4500, perfume: 3700, gem: 4200, ivory: 1000, cotton: 210, coffee: 270 },
     specialty: ['tea', 'gem', 'pearl']
   },
   {
     id: 'amsterdam', name: '阿姆斯特丹', region: '荷兰',
     coords: [52.4, 4.9],
-    basePrice: { silk: 860, tea: 540, porcelain: 850, spice: 660, pearl: 900, perfume: 1020, gem: 1360, ivory: 700, cotton: 460, coffee: 480 },
+    basePrice: { silk: 3100, tea: 265, porcelain: 880, spice: 720, pepper: 185, pearl: 4300, perfume: 3600, gem: 4000, ivory: 950, cotton: 200, coffee: 250 },
     specialty: ['spice', 'coffee', 'gem']
   },
   {
     id: 'istanbul', name: '伊斯坦布尔', region: '奥斯曼',
     coords: [41.0, 28.9],
-    basePrice: { silk: 680, tea: 460, porcelain: 700, spice: 480, pearl: 780, perfume: 880, gem: 1220, ivory: 520, cotton: 340, coffee: 420 },
+    basePrice: { silk: 1700, tea: 200, porcelain: 620, spice: 450, pepper: 125, pearl: 2900, perfume: 2000, gem: 4300, ivory: 650, cotton: 120, coffee: 150 },
     specialty: ['spice', 'silk', 'perfume']
   },
   {
     id: 'genoa', name: '热那亚', region: '意大利',
     coords: [44.4, 8.9],
-    basePrice: { silk: 680, tea: 490, porcelain: 720, spice: 600, pearl: 850, perfume: 950, gem: 1320, ivory: 580, cotton: 390, coffee: 450 },
+    basePrice: { silk: 1900, tea: 240, porcelain: 700, spice: 580, pepper: 155, pearl: 3100, perfume: 2400, gem: 4900, ivory: 720, cotton: 145, coffee: 195 },
     specialty: ['silk', 'spice', 'pearl']
   }
 ]
 
-const AMM_SPREAD = 0.10
-const SHIP_CAPACITY = 100
-const SETTLE_HOURS = 3
+// ═══════════════════════════════════════════════════════════════
+// 游戏常量
+// ═══════════════════════════════════════════════════════════════
+
+const AMM_SPREAD = 0.10          // AMM 买卖价差 (±5%)
+const SHIP_CAPACITY = 100        // 默认船只装载量
+const SETTLE_HOURS = 3           // 合约交割等待时间
+const STOCK_EQUILIBRIUM = 100    // 城市库存均衡值
+const STOCK_ELASTICITY = 0.3     // 库存对价格弹性（库存为0时价格+30%）
+const STOCK_REGEN_PER_HOUR = 15  // 库存每小时恢复量
 
 const VALID_ITEMS = ['silk', 'tea', 'porcelain', 'spice', 'pearl', 'perfume', 'gem', 'ivory', 'cotton', 'coffee', 'pepper']
-const LUXURY_ITEMS = ['silk', 'pearl', 'perfume', 'gem']
-const SPECIALTY_DISCOUNT = 0.8
-const LUXURY_MARKUP = 1.2
+const SPECIALTY_DISCOUNT = 0.8   // 特产城市折扣
+
+// ═══════════════════════════════════════════════════════════════
+// 事件系统定义
+// ═══════════════════════════════════════════════════════════════
+
+const EVENT_DEFS = [
+  { type: 'festival',      desc: '节日庆典，需求旺盛',       priceMod: 1.40, durationHours: 4 },
+  { type: 'blockade',      desc: '港口封锁，供给中断',       priceMod: 1.55, durationHours: 3 },
+  { type: 'surplus',       desc: '商船大量到港，供给过剩',   priceMod: 0.65, durationHours: 5 },
+  { type: 'storm',         desc: '风暴损毁库存',             priceMod: 1.35, durationHours: 3 },
+  { type: 'trader_fleet',  desc: '贸易船队抵达，货源充裕',   priceMod: 0.75, durationHours: 4 },
+  { type: 'plague',        desc: '城市瘟疫，需求萎缩',       priceMod: 0.55, durationHours: 6 }
+]
+
+let activeEvents = []
+
+function cleanExpiredEvents() {
+  const before = activeEvents.length
+  activeEvents = activeEvents.filter(e => e.expiresAt > Date.now())
+  return before - activeEvents.length
+}
+
+function applyEventMultiplier(basePrice, cityId, item) {
+  const now = Date.now()
+  const events = activeEvents.filter(e =>
+    e.expiresAt > now &&
+    e.cityId === cityId &&
+    (e.item === null || e.item === item)
+  )
+  let multiplier = 1.0
+  for (const e of events) {
+    multiplier *= e.priceMod
+  }
+  return Math.round(basePrice * multiplier)
+}
+
+function generateRandomEvent() {
+  const def = EVENT_DEFS[Math.floor(Math.random() * EVENT_DEFS.length)]
+  const city = CITIES[Math.floor(Math.random() * CITIES.length)]
+  const item = Math.random() < 0.4 ? null : VALID_ITEMS[Math.floor(Math.random() * VALID_ITEMS.length)]
+
+  const event = {
+    id: `evt_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    type: def.type,
+    desc: def.desc,
+    cityId: city.id,
+    cityName: city.name,
+    item,
+    priceMod: def.priceMod,
+    createdAt: Date.now(),
+    expiresAt: Date.now() + def.durationHours * 3600000
+  }
+
+  activeEvents = activeEvents.filter(e => !(e.cityId === event.cityId && e.item === event.item))
+  activeEvents.push(event)
+  cleanExpiredEvents()
+
+  INFO(`[龙虾船长] 事件: ${city.name} ${def.desc}${item ? ' (' + item + ')' : ' (全商品)'} 价格×${def.priceMod}`)
+  return event
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 定价引擎
+// ═══════════════════════════════════════════════════════════════
 
 /**
  * 计算商品在某个城市的买入/卖出价格
+ * @param {number} basePrice - 城市基础价格
+ * @param {string} item - 商品名
+ * @param {boolean} isSpecialty - 是否为该城市特产
+ * @param {number} stockLevel - 当前库存量（默认均衡值100）
  */
-function calculateItemPrice(basePrice, item, isSpecialty = false) {
-  const priceMultiplier = isSpecialty ? SPECIALTY_DISCOUNT : 1.0
-  const luxuryMultiplier = LUXURY_ITEMS.includes(item) ? LUXURY_MARKUP : 1.0
-  const price = Math.round(basePrice * priceMultiplier * luxuryMultiplier)
+function calculateItemPrice(basePrice, item, isSpecialty = false, stockLevel = STOCK_EQUILIBRIUM) {
+  const specialtyMultiplier = isSpecialty ? SPECIALTY_DISCOUNT : 1.0
+  const stockRatio = stockLevel / STOCK_EQUILIBRIUM
+  const stockMultiplier = 1 + (1 - stockRatio) * STOCK_ELASTICITY
+  const price = Math.round(basePrice * specialtyMultiplier * stockMultiplier)
   return {
     buy: Math.round(price * (1 + AMM_SPREAD / 2)),
     sell: Math.round(price * (1 - AMM_SPREAD / 2))
   }
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 城市动态库存管理
+// ═══════════════════════════════════════════════════════════════
+
+async function getCityStock(cityId) {
+  let cityDoc = await cache.getCity(cityId)
+
+  const now = new Date()
+  const lastUpdate = cityDoc.lastStockUpdate ? new Date(cityDoc.lastStockUpdate) : now
+  const hoursElapsed = (now - lastUpdate) / 3600000
+
+  if (hoursElapsed > 0.05) {
+    const regenAmount = Math.floor(hoursElapsed * STOCK_REGEN_PER_HOUR)
+    if (regenAmount > 0) {
+      let changed = false
+      for (const item of VALID_ITEMS) {
+        const current = _getStockLevel(cityDoc, item)
+        if (current < STOCK_EQUILIBRIUM) {
+          _setStockLevel(cityDoc, item, Math.min(STOCK_EQUILIBRIUM, current + regenAmount))
+          changed = true
+        } else if (current > STOCK_EQUILIBRIUM) {
+          _setStockLevel(cityDoc, item, Math.max(STOCK_EQUILIBRIUM, current - regenAmount))
+          changed = true
+        }
+      }
+      if (changed) {
+        cityDoc.lastStockUpdate = now
+        await cache.saveAndCacheCity(cityDoc)
+      }
+    }
+  }
+
+  return cityDoc
+}
+
+function _getStockLevel(cityDoc, item) {
+  if (!cityDoc || !cityDoc.stock) return STOCK_EQUILIBRIUM
+  if (cityDoc.stock instanceof Map) {
+    const val = cityDoc.stock.get(item)
+    return val !== undefined && val !== null ? val : STOCK_EQUILIBRIUM
+  }
+  const val = cityDoc.stock[item]
+  return val !== undefined && val !== null ? val : STOCK_EQUILIBRIUM
+}
+
+function _setStockLevel(cityDoc, item, value) {
+  if (!cityDoc) return
+  if (cityDoc.stock instanceof Map) {
+    cityDoc.stock.set(item, value)
+  } else {
+    cityDoc.stock[item] = value
+  }
+  cityDoc.markModified('stock')
+}
+
+async function updateCityStock(cityId, item, delta) {
+  let cityDoc = await cache.getCity(cityId)
+  const current = _getStockLevel(cityDoc, item)
+  const newVal = Math.max(0, current + delta)
+  _setStockLevel(cityDoc, item, newVal)
+  cityDoc.lastStockUpdate = new Date()
+  await cityDoc.save()
+  await cache.invalidateCity(cityId)
+}
+
+// ═══════════════════════════════════════════════════════════════
+// 航行计算
+// ═══════════════════════════════════════════════════════════════
 
 /**
  * 计算两点间的球面距离（km），使用 Haversine 公式
@@ -124,7 +273,7 @@ function calculateDistance(coords1, coords2) {
 }
 
 /**
- * 计算航行时间（分钟），公式: 球面距离(km) / 100
+ * 计算航行时间（分钟），公式: 球面距离(km) / 500
  */
 function calculateSailingTime(fromCityId, toCityId) {
   const from = CITIES.find(c => c.id === fromCityId)
@@ -133,6 +282,10 @@ function calculateSailingTime(fromCityId, toCityId) {
   const distance = calculateDistance(from.coords, to.coords)
   return Math.round(distance / 500)
 }
+
+// ═══════════════════════════════════════════════════════════════
+// 货物操作辅助函数
+// ═══════════════════════════════════════════════════════════════
 
 /**
  * 获取玩家总货物数量
@@ -207,7 +360,9 @@ function cargoToPlainObject(player) {
   return result
 }
 
-// ─── 合约交割内部辅助函数 ───────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// 合约交割内部辅助函数
+// ═══════════════════════════════════════════════════════════════
 
 /**
  * 完成合约：转移金币+货物，更新合约状态，创建交易记录
@@ -216,10 +371,12 @@ async function _completeContract(contract, buyer, seller, now) {
   buyer.gold -= contract.totalPrice
   setCargoItem(buyer, contract.item, getCargoItem(buyer, contract.item) + contract.amount)
   await buyer.save()
+  await cache.invalidatePlayer(buyer.openid)
 
   if (seller) {
     seller.gold += contract.totalPrice
     await seller.save()
+    await cache.invalidatePlayer(seller.openid)
   }
 
   contract.status = 'completed'
@@ -245,10 +402,11 @@ async function _completeContract(contract, buyer, seller, now) {
  * 货物退还卖家
  */
 async function _refundSeller(contract) {
-  const seller = await Player.findOne({ openid: contract.sellerOpenid })
+  const seller = await cache.getPlayer(contract.sellerOpenid)
   if (seller) {
     setCargoItem(seller, contract.item, getCargoItem(seller, contract.item) + contract.amount)
     await seller.save()
+    await cache.invalidatePlayer(seller.openid)
   }
 }
 
@@ -282,7 +440,7 @@ async function _handleBuyerArrival(contract, now) {
     }
   }
 
-  const buyer = await Player.findOne({ openid: contract.buyerOpenid })
+  const buyer = await cache.getPlayer(contract.buyerOpenid)
   if (!buyer || buyer.gold < contract.totalPrice) {
     contract.status = 'failed'
     await contract.save()
@@ -294,7 +452,7 @@ async function _handleBuyerArrival(contract, now) {
     }
   }
 
-  const seller = await Player.findOne({ openid: contract.sellerOpenid })
+  const seller = await cache.getPlayer(contract.sellerOpenid)
   await _completeContract(contract, buyer, seller, now)
   INFO(`[龙虾船长] 合约 ${contract.id} 交割完成`)
   return {
@@ -319,10 +477,10 @@ async function _handleExpiredContracts(cityId, sellerOpenid, now) {
   for (const contract of expired) {
     if (contract.sellerOpenid !== sellerOpenid || contract.buyerArrived) continue
 
-    const buyer = await Player.findOne({ openid: contract.buyerOpenid })
+    const buyer = await cache.getPlayer(contract.buyerOpenid)
 
     if (buyer && buyer.gold >= contract.totalPrice) {
-      const seller = await Player.findOne({ openid: contract.sellerOpenid })
+      const seller = await cache.getPlayer(contract.sellerOpenid)
       await _completeContract(contract, buyer, seller, now)
       INFO(`[龙虾船长] 合约 ${contract.id} 强制交割`)
       results.push({
@@ -344,7 +502,9 @@ async function _handleExpiredContracts(cityId, sellerOpenid, now) {
   return results
 }
 
-// ─── 业务接口 ───────────────────────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// 业务接口
+// ═══════════════════════════════════════════════════════════════
 
 /**
  * 玩家入驻
@@ -372,6 +532,7 @@ exports.enrollPlayer = async ({ openid, publicKey, initialGold = 20000 }) => {
     })
 
     INFO(`[龙虾船长] 新玩家入驻: ${openid}`)
+    await cache.cachePlayer(player)
     return { code: 0, data: { doc: player } }
   } catch (e) {
     ERROR(`玩家入驻失败: ${e.message}`)
@@ -380,32 +541,50 @@ exports.enrollPlayer = async ({ openid, publicKey, initialGold = 20000 }) => {
 }
 
 /**
- * 获取城市信息
+ * 获取城市信息（含动态价格、库存、事件）
+ * 信息不对称：仅返回当前查询的城市信息
  */
 exports.getCity = async ({ id }) => {
   if (!id) return { code: 1, msg: '缺少城市 ID' }
 
-  const city = CITIES.find(c => c.id === id)
-  if (!city) return { code: 4, msg: '城市不存在' }
+  const cityConfig = CITIES.find(c => c.id === id)
+  if (!cityConfig) return { code: 4, msg: '城市不存在' }
 
   try {
     const players = await Player.find({ currentCity: id, status: 'docked', deleted: { $ne: true } })
     const contracts = await Contract.find({ deliveryCity: id, status: { $in: ['pending', 'seller_arrived', 'buyer_arrived'] }})
 
+    const cityDoc = await getCityStock(id)
+    cleanExpiredEvents()
+
     const prices = {}
-    for (const [item, basePrice] of Object.entries(city.basePrice)) {
-      prices[item] = calculateItemPrice(basePrice, item, city.specialty?.includes(item))
+    const stockInfo = {}
+    for (const [item, basePrice] of Object.entries(cityConfig.basePrice)) {
+      const stockLevel = _getStockLevel(cityDoc, item)
+      const eventPrice = applyEventMultiplier(basePrice, id, item)
+      prices[item] = calculateItemPrice(eventPrice, item, cityConfig.specialty?.includes(item), stockLevel)
+      stockInfo[item] = stockLevel
     }
+
+    const cityEvents = activeEvents.filter(e => e.expiresAt > Date.now() && e.cityId === id)
 
     return {
       code: 0,
       data: {
         city: {
-          id: city.id,
-          name: city.name,
-          coords: city.coords,
-          specialty: city.specialty,
-          prices
+          id: cityConfig.id,
+          name: cityConfig.name,
+          coords: cityConfig.coords,
+          specialty: cityConfig.specialty,
+          prices,
+          stock: stockInfo,
+          events: cityEvents.map(e => ({
+            type: e.type,
+            desc: e.desc,
+            item: e.item,
+            priceMod: e.priceMod,
+            expiresInMin: Math.round((e.expiresAt - Date.now()) / 60000)
+          }))
         },
         players: players.map(p => ({
           openid: p.openid,
@@ -441,7 +620,7 @@ exports.movePlayer = async ({ openid, targetCity }) => {
   if (!target) return { code: 4, msg: '目标城市不存在' }
 
   try {
-    const player = await Player.findOne({ openid, deleted: { $ne: true } })
+    const player = await cache.getPlayer(openid)
     if (!player) return { code: 4, msg: '玩家不存在' }
 
     if (player.status === 'sailing') {
@@ -454,6 +633,7 @@ exports.movePlayer = async ({ openid, targetCity }) => {
     }
 
     await player.save()
+    await cache.invalidatePlayer(openid)
 
     const sailingTime = player.status === 'sailing'
       ? calculateSailingTime(player.currentCity, targetCity)
@@ -484,11 +664,12 @@ exports.updateIntent = async ({ openid, intent }) => {
   const truncatedIntent = intent ? intent.substring(0, 140) : ''
 
   try {
-    const player = await Player.findOne({ openid, deleted: { $ne: true } })
+    const player = await cache.getPlayer(openid)
     if (!player) return { code: 4, msg: '玩家不存在' }
 
     player.intent = truncatedIntent
     await player.save()
+    await cache.invalidatePlayer(openid)
 
     INFO(`[龙虾船长] 玩家 ${openid} 更新意向牌: ${truncatedIntent}`)
     return { code: 0, data: { intent: truncatedIntent } }
@@ -499,7 +680,7 @@ exports.updateIntent = async ({ openid, intent }) => {
 }
 
 /**
- * NPC 系统交易
+ * NPC 系统交易（含动态库存更新）
  */
 exports.tradeWithNpc = async ({ openid, item, amount, action }) => {
   if (!openid || !item || !amount || !action) {
@@ -515,18 +696,20 @@ exports.tradeWithNpc = async ({ openid, item, amount, action }) => {
   }
 
   try {
-    const player = await Player.findOne({ openid, deleted: { $ne: true } })
+    const player = await cache.getPlayer(openid)
     if (!player) return { code: 4, msg: '玩家不存在' }
 
     if (player.status !== 'docked') {
       return { code: 1, msg: '航行中不能进行交易' }
     }
 
-    const city = CITIES.find(c => c.id === player.currentCity)
-    if (!city) return { code: 4, msg: '玩家不在任何城市' }
+    const cityConfig = CITIES.find(c => c.id === player.currentCity)
+    if (!cityConfig) return { code: 4, msg: '玩家不在任何城市' }
 
-    const basePrice = city.basePrice[item]
-    const prices = calculateItemPrice(basePrice, item, city.specialty?.includes(item))
+    const cityDoc = await getCityStock(player.currentCity)
+    const stockLevel = _getStockLevel(cityDoc, item)
+    const eventPrice = applyEventMultiplier(cityConfig.basePrice[item], player.currentCity, item)
+    const prices = calculateItemPrice(eventPrice, item, cityConfig.specialty?.includes(item), stockLevel)
     const tradePrice = action === 'buy' ? prices.buy : prices.sell
     const totalCost = tradePrice * Math.abs(amount)
 
@@ -540,6 +723,7 @@ exports.tradeWithNpc = async ({ openid, item, amount, action }) => {
       }
       player.gold -= totalCost
       setCargoItem(player, item, getCargoItem(player, item) + amount)
+      await updateCityStock(player.currentCity, item, -amount)
     } else {
       const playerStock = getCargoItem(player, item)
       if (playerStock < amount) {
@@ -547,9 +731,11 @@ exports.tradeWithNpc = async ({ openid, item, amount, action }) => {
       }
       player.gold += totalCost
       setCargoItem(player, item, playerStock - amount)
+      await updateCityStock(player.currentCity, item, amount)
     }
 
     await player.save()
+    await cache.invalidatePlayer(openid)
 
     const trade = await Trade.create({
       id: util.createId(),
@@ -563,15 +749,23 @@ exports.tradeWithNpc = async ({ openid, item, amount, action }) => {
       createDate: new Date()
     })
 
-    INFO(`[龙虾船长] NPC 交易: ${openid} ${action === 'buy' ? '买入' : '卖出'} ${amount} ${item} @ ${tradePrice}`)
+    const newStockLevel = _getStockLevel(await cache.getCity(player.currentCity), item)
+    INFO(`[龙虾船长] NPC 交易: ${openid} ${action === 'buy' ? '买入' : '卖出'} ${amount} ${item} @ ${tradePrice} (库存: ${stockLevel}→${newStockLevel})`)
     return {
       code: 0,
       data: {
         trade,
         playerGold: player.gold,
-        cargo: player.cargo,
+        cargo: cargoToPlainObject(player),
         cargoUsed: getTotalCargo(player),
-        cargoCapacity: player.shipCapacity
+        cargoCapacity: player.shipCapacity,
+        priceDetail: {
+          basePrice: cityConfig.basePrice[item],
+          eventPrice,
+          stockLevel,
+          tradePrice,
+          totalCost
+        }
       }
     }
   } catch (e) {
@@ -592,10 +786,10 @@ exports.createContract = async ({ buyerOpenid, sellerOpenid, item, amount, price
   if (!delivery) return { code: 4, msg: '交割城市不存在' }
 
   try {
-    const seller = await Player.findOne({ openid: sellerOpenid, deleted: { $ne: true } })
+    const seller = await cache.getPlayer(sellerOpenid)
     if (!seller) return { code: 4, msg: '卖方不存在' }
 
-    const buyer = await Player.findOne({ openid: buyerOpenid, deleted: { $ne: true } })
+    const buyer = await cache.getPlayer(buyerOpenid)
     if (!buyer) return { code: 4, msg: '买方不存在' }
 
     const sellerStock = getCargoItem(seller, item)
@@ -605,6 +799,7 @@ exports.createContract = async ({ buyerOpenid, sellerOpenid, item, amount, price
 
     setCargoItem(seller, item, sellerStock - amount)
     await seller.save()
+    await cache.invalidatePlayer(sellerOpenid)
 
     const contract = await Contract.create({
       id: util.createId(),
@@ -708,16 +903,12 @@ exports.listContracts = async ({ openid, status }) => {
 
 /**
  * 玩家抵达检测合约交割
- * 1. 卖家必须先抵达并卸货
- * 2. 买家必须在卖家卸货后抵达，才能交割
- * 3. 如果买家比卖家先到，无法交割
- * 4. 卖家卸货后最多等3小时，超时强制交割
  */
 exports.arriveAndSettle = async ({ openid }) => {
   if (!openid) return { code: 1, msg: '缺少 openid' }
 
   try {
-    const player = await Player.findOne({ openid, deleted: { $ne: true } })
+    const player = await cache.getPlayer(openid)
     if (!player) return { code: 4, msg: '玩家不存在' }
     if (player.status !== 'docked') {
       return { code: 1, msg: '玩家不在停泊状态' }
@@ -765,7 +956,50 @@ exports.arriveAndSettle = async ({ openid }) => {
   }
 }
 
-// ─── OceanBus 集成（待 v2 迁移） ────────────────────────────────
+// ═══════════════════════════════════════════════════════════════
+// 事件系统接口
+// ═══════════════════════════════════════════════════════════════
+
+/**
+ * 手动触发随机事件
+ */
+exports.triggerRandomEvent = async () => {
+  const event = generateRandomEvent()
+  return {
+    code: 0,
+    data: { event }
+  }
+}
+
+/**
+ * 查询当前活跃事件
+ */
+exports.listEvents = async ({ cityId } = {}) => {
+  cleanExpiredEvents()
+  let events = activeEvents
+  if (cityId) events = events.filter(e => e.cityId === cityId)
+
+  return {
+    code: 0,
+    data: {
+      events: events.map(e => ({
+        id: e.id,
+        type: e.type,
+        desc: e.desc,
+        cityId: e.cityId,
+        cityName: e.cityName,
+        item: e.item,
+        priceMod: e.priceMod,
+        createdAt: e.createdAt,
+        expiresInMin: Math.round((e.expiresAt - Date.now()) / 60000)
+      }))
+    }
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════
+// OceanBus 集成
+// ═══════════════════════════════════════════════════════════════
 
 const OceanBusClient = require('../../lib/oceanbus')
 

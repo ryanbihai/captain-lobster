@@ -21,6 +21,7 @@ const citySchema = new Schema({
     coffee: 100,
     pepper: 100
   }},
+  lastStockUpdate: { type: Date, default: Date.now },
   createDate: { type: Date, default: Date.now },
   updateDate: { type: Date },
   deleted: { type: Boolean, default: false }
