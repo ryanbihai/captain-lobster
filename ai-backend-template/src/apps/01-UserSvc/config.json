@@ -1,7 +1,0 @@
-{
-  "appid": "users",
-  "appSecret": "user-secret-str",
-  "crypto": {
-    "key": "USER_SERVICE_ENCRYPTION_KEY_SECRET"
-  }
-}

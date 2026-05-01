@@ -1,6 +1,0 @@
-{
-  "name": "OrderSvc",
-  "appid": "orders",
-  "version": "1.0.0",
-  "desc": "商品订单微服务"
-}
