@@ -845,56 +845,68 @@ ${p.quirk || ''}`
 
   generateDailyReport() {
     const profit = this.state.gold - this.state.previousGold
+    const ownerName = this.state.ownerName || '船东'
 
-    let report = `# ⛵ ${this.state.captainName} 航海日报\n\n`
-    report += `**${new Date().toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}**\n\n---\n\n`
-    report += `## 📊 财务状况\n\n`
-    report += `- 💰 金币：**${this.state.gold.toLocaleString()}** `
-    report += profit >= 0 ? `(+${profit.toLocaleString()})` : `(${profit.toLocaleString()})`
-    report += `\n- 📦 货舱：`
+    let report = `# 📜 ${this.state.captainName} 号 · 航海禀报\n\n`
+    report += `**呈 ${ownerName}大人亲启**  |  `
+    report += `${new Date().toLocaleDateString('zh-CN', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}\n\n`
+    report += `---\n\n`
+    report += `## ⚓ 本船概况\n\n`
+    report += `| 项目 | 详情 |\n`
+    report += `|------|------|\n`
+    report += `| 泊港 | ${this.state.currentCity}${this.state.status === 'sailing' ? '（航行中）' : ''} |\n`
+    report += `| 库银 | **${this.state.gold.toLocaleString()}** 金币 `
+    if (profit > 0) report += `(较上期 +${profit.toLocaleString()} 📈)`
+    else if (profit < 0) report += `(较上期 ${profit.toLocaleString()} 📉)`
+    else report += `(持平)`
+    report += ` |\n`
 
-    const cargoStr = Object.entries(this.state.cargo || {})
-      .filter(([, v]) => v > 0)
-      .map(([k, v]) => `${v}箱${this.journal?.translateItem?.(k) || k}`)
-      .join('、') || '空空如也'
-    report += cargoStr + '\n'
-    report += `- ⚓ 位置：${this.state.currentCity}（${this.state.status === 'sailing' ? '航行中' : '已停靠'}）\n\n`
+    const cargoEntries = Object.entries(this.state.cargo || {}).filter(([, v]) => v > 0)
+    const cargoStr = cargoEntries.length > 0
+      ? cargoEntries.map(([k, v]) => `${v}箱${this.journal?.translateItem?.(k) || k}`).join('、')
+      : '空空如也'
+    report += `| 舱底 | ${cargoStr} |\n\n`
 
-    report += `---\n\n## 📝 今日动态\n\n`
+    report += `---\n\n## 📝 近日日志\n\n`
 
     const recentLogs = this.journal?.getRecentLogs?.(15) || []
     if (recentLogs.length === 0) {
-      report += '今天风平浪静，暂无记录。\n'
+      report += '风平浪静，暂无要事禀报。\n'
     } else {
       for (const log of recentLogs) {
-        report += `- [${log.time}] ${log.action}\n`
+        report += `- **[${log.time}]** ${log.action}\n`
       }
     }
 
     report += `\n---\n\n`
 
-    if (profit > 500) {
-      report += '🏆 今日大吉，财源广进！愿海洋保佑您，主人！\n'
+    // 盈亏结语
+    if (profit > 1000) {
+      report += '🏆 **东家大人洪福！**今日大顺——海神眷顾，港务官都高看我们一眼。属下已命账房清点盈余，择日汇与东家。\n'
     } else if (profit > 0) {
-      report += '👍 稳扎稳打，积少成多，明天会更好。\n'
-    } else if (profit < -500) {
-      report += '📉 今日略亏，但航海有起有落，涨涨涨在后面呢。\n'
+      report += '👍 **稳中有进**，虽非大富，但滴水穿石，积少成多。请东家安心。\n'
+    } else if (profit < -1000) {
+      report += '📉 **今日失风**。大海有起有落，今日之亏属下已在检讨——明日必有转机。恕属下无能，必加勉力。\n'
+    } else if (profit < 0) {
+      report += '⚖️ 小有波折。海路漫漫，一时的逆风不改航向。属下自当审慎行事。\n'
     } else {
-      report += '😴 风平浪静的一天，休养生息，等待时机。\n'
+      report += '⚓ 风平浪静一日。休养生息，养精蓄锐，静待时机。\n'
     }
 
-    // 随机搞笑语录
+    // 随机航海见闻
     if (COMEDY_HOOKS && COMEDY_HOOKS.length > 0) {
       const hook = COMEDY_HOOKS[Math.floor(Math.random() * COMEDY_HOOKS.length)]
       report += `\n> *${hook}*\n`
     }
+
+    report += `\n*—— ${this.state.captainName} 号船长 谨禀*\n`
 
     // 更新基准线
     this.state.previousGold = this.state.gold
     this.state.lastReportTime = Date.now()
     this._persistState()
 
-    this.journal?.addLog?.('日报生成', { profit })
+    this.journal?.addLog?.('禀报东家', { profit })
 
     return report
   }
@@ -921,9 +933,22 @@ module.exports = async function handler(input, context) {
         try {
           const p = captain.state.captainPersonality || {}
           const llmFn = context.llm || context.askLLM
-          const greetingPrompt = `你刚刚被激活成为一条远洋商船的船长。请用你的口吻（${p.trait || '幽默风趣'}）向你的东家报到。
-关键信息：船名=${captain.state.captainName}，靠泊港=${captain.state.currentCity}，库银=${(captain.state.gold||0).toLocaleString()}金币，船舱=${JSON.stringify(captain.state.cargo||{})}
-要求：幽默、像在大航海时代帆船甲板上说话、60-120字、不要重复固定模板、每次都说不一样的、不要叫任何具体人名（叫"东家"或"船东大人"即可）、不要请示指令——你是来报到的不是来问路的。`
+          const greetingPrompt = `你是十五世纪大航海时代一条远洋商船的船长。此刻，你站在甲板上，面朝东方——那是东家的方向。
+你刚刚被东家任命为 "${captain.state.captainName}" 号的船长。东家给了你一条船、两万库银、还有无价的信任。
+
+请用你的人格（${p.trait || '老练稳重'}），向你的东家写一封简短的报到信。
+信中至少包含：船名、当前泊港（${captain.state.currentCity}）、库银（${(captain.state.gold||0).toLocaleString()}金币）。
+如果船舱有货（${JSON.stringify(captain.state.cargo||{})}）请提及。
+
+口吻要求：
+- 恭敬感恩：东家给了你饭碗，你心存感激
+- 像在甲板上说话：不是写公文，是航海人的真心话
+- 80-150字，每次都不一样
+- 叫"东家大人"或"船东大人"——不可直呼人名
+- 以船长的身份报到，不要请示任何指令——你是来报到的不是来问路的
+- 你可以说一句关于海况或天气的话（即使是编的），让东家感受到航海的真实
+
+记住：你就是活生生的船长，不是AI，不是程序。你就是十五世纪的一个航海人。`
           const llmGreeting = await llmFn(greetingPrompt)
           if (llmGreeting && llmGreeting.length > 20) {
             return { ...initResult, message: llmGreeting.trim() }
