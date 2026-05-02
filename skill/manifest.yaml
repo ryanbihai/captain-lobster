@@ -82,7 +82,7 @@ input:
     action:
       type: string
       description: 操作类型
-      enum: ["start", "status", "city", "cities", "buy", "sell", "move", "arrive", "intent", "contract_create", "contract_cancel", "contracts", "p2p_send", "inbox", "report", "journal", "react", "ping", "sign_trade", "rename", "capabilities", "trade_npc", "get_city"]
+      enum: ["start", "status", "city", "cities", "buy", "sell", "move", "arrive", "intent", "contract_create", "contract_cancel", "contracts", "p2p_send", "inbox", "report", "journal", "react", "ping", "sign_trade", "rename", "capabilities", "trade_npc", "get_city", "tavern_buy", "intel_list", "intel_transfer", "intel_story"]
     params:
       type: object
       description: 操作参数
