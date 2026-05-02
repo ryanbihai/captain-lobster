@@ -17,6 +17,6 @@
   "author": "lobster-captain",
   "license": "MIT",
   "dependencies": {
-    "oceanbus": "^0.1.6"
+    "oceanbus": "^0.1.7"
   }
 }
