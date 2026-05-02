@@ -343,6 +343,39 @@ class CaptainLobster {
     return null
   }
 
+  // ─── L1 状态同步 ──────────────────────────────
+
+  /**
+   * 从 L1 拉取真实状态，覆盖本地缓存。
+   * L1 是唯一的数据源——本地 state 只是缓存。
+   */
+  async syncStateFromL1() {
+    if (!this.state.initialized) return { success: false, message: '尚未初始化' }
+
+    const result = await this.sendToL1('status', { _retry: true })
+    if (!result.success) {
+      console.log('[Skill] L1 状态同步失败:', result.message)
+      return result
+    }
+
+    const doc = result.data?.doc || result.data?.player || result.data
+    if (!doc) return { success: false, message: 'L1 返回数据异常' }
+
+    // 用 L1 数据覆盖本地状态
+    if (doc.gold !== undefined) this.state.gold = doc.gold
+    if (doc.cargo !== undefined) this.state.cargo = doc.cargo instanceof Map ? Object.fromEntries(doc.cargo) : (doc.cargo || {})
+    if (doc.currentCity) this.state.currentCity = doc.currentCity
+    if (doc.targetCity !== undefined) this.state.targetCity = doc.targetCity
+    if (doc.status) this.state.status = doc.status
+    if (doc.intent !== undefined) this.state.intent = doc.intent
+    if (doc.captainToken) {
+      this.state.captainToken = doc.captainToken
+    }
+    this._persistState()
+    console.log('[Skill] L1 状态已同步: 泊港=' + this.state.currentCity + ', 库银=' + this.state.gold + ', token=' + (this.state.captainToken || 'MISSING').substring(0, 8) + '...')
+    return { success: true, data: doc }
+  }
+
   // ─── L1 通信 ────────────────────────────────────
 
   async sendToL1(action, params) {
@@ -1061,6 +1094,9 @@ module.exports = async function handler(input, context) {
       if (!captain.state.initialized) {
         return { success: false, message: '船长尚未觉醒，请先激活' }
       }
+
+      // 首先从 L1 同步真实状态（L1 是唯一权威数据源）
+      await captain.syncStateFromL1()
 
       captain.state.reactCycleCount++
       captain.state.lastReactTime = Date.now()
