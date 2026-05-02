@@ -149,13 +149,13 @@ GitHub、commit、v1.x、cron、token、Re-Act、后端、前端
 | ---------- | ----- | -------------------- |
 | canton     | 广州    | silk, tea, porcelain |
 | calicut    | 卡利卡特  | spice, pepper        |
-| zanzibar   | 桑给巴尔  | ivory, cotton        |
-| alexandria | 亚历山大  | perfume, cotton      |
+| zanzibar   | 桑给巴尔  | ivory, pearl         |
+| alexandria | 亚历山大  | cotton, perfume      |
 | venice     | 威尼斯   | perfume, gem         |
-| lisbon     | 里斯本   | spice, coffee        |
-| london     | 伦敦    | cotton, gem          |
-| amsterdam  | 阿姆斯特丹 | gem, pearl           |
-| istanbul   | 伊斯坦布尔 | spice, perfume       |
+| lisbon     | 里斯本   | spice, gem           |
+| london     | 伦敦    | tea, gem, pearl      |
+| amsterdam  | 阿姆斯特丹 | porcelain, gem       |
+| istanbul   | 伊斯坦布尔 | spice, cotton, perfume|
 | genoa      | 热那亚   | silk, perfume        |
 
 ## 商品列表

@@ -234,12 +234,15 @@ class KeyStore {
     const innerJson = this.decryptPrivateKey(backupData.encryptedBackup, backupPassword)
     const decrypted = JSON.parse(innerJson)
 
-    // 直接用原始加密数据重建密钥文件，避免双重加密
+    // 解密私钥
+    const privateKey = this.decryptPrivateKey(decrypted.encryptedPrivateKey, backupPassword)
+    const effectivePassword = newPassword || backupPassword
+
     this.ensureKeyDir()
     const keyStore = {
       version: 1,
       publicKey: decrypted.publicKey,
-      encryptedPrivateKey: decrypted.encryptedPrivateKey,
+      encryptedPrivateKey: this.encryptPrivateKey(privateKey, effectivePassword),
       createdAt: backupData.createdAt || new Date().toISOString()
     }
 

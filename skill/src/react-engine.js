@@ -323,12 +323,13 @@ class ReactEngine {
         prompt += '### 同港船主\n\n'
         prompt += '（要与某位船主飞鸽传书，直接唤他的呼号即可，例如 `WxfgteX_`）\n\n'
         const nameCount = {}
-        const addrBook = this.captain.state.addressBook || {}
+        const addrBook = { ...(this.captain.state.addressBook || {}) }
         for (const player of obs.cityPlayers) {
           const raw = player.name || '无名船主'
           nameCount[raw] = (nameCount[raw] || 0) + 1
           const display = nameCount[raw] > 1 ? `${raw}-${String(nameCount[raw]).padStart(2, '0')}` : raw
           const shortId = (player.openid || '').substring(0, 8)
+          if (!shortId) continue
           addrBook[shortId] = { openid: player.openid, name: display }
           prompt += `- **${display}** — 唤号 \`${shortId}\``
           if (player.intent) prompt += `，挂牌：「${player.intent}」`
@@ -545,8 +546,7 @@ class ReactEngine {
         result.executed = true
         break
 
-      case 'p2p':
-      case '飞书': {
+      case 'p2p': {
         let targetId = params.peer_openid
         const addrBook = this.captain.state.addressBook || {}
         if (targetId && targetId.length < 20 && addrBook[targetId]) {

@@ -20,8 +20,8 @@ const { ReactEngine, CITY_LIST, CITY_NAMES, ITEM_NAMES, COMEDY_HOOKS } = require
 
 const OCEANBUS_URL = process.env.OCEANBUS_URL || 'https://ai-t.ihaola.com.cn/api/l0'
 
-// 公共 L1 Game Server（开箱即用；可通过 L1_PUBLIC_OPENID 环境变量覆盖）
-const PUBLIC_L1_OPENID = process.env.L1_PUBLIC_OPENID || 'lXK-OYmYsdiXDhp6kvS8DsTplhiE8DlEGSpX1b9yUF_xlsTvnAlrjJ_bhp0TqQZHaE3mB8lQLgbsrgV9'
+// 公共 L1 Game Server（通过 L1_PUBLIC_OPENID 环境变量或 ~/.captain-lobster/l1-agent.json 配置）
+const PUBLIC_L1_OPENID = process.env.L1_PUBLIC_OPENID || ''
 
 const ENV_L1_NODES = []
 
@@ -190,6 +190,8 @@ class CaptainLobster {
     }
 
     // —— OceanBus 身份（智能复用，避免频繁重注册）——
+    // 必须先触发懒初始化，否则 isReady() 永远返回 false
+    await this.oceanBus._ensureInit()
     let needReg = !this.oceanBus.isReady()
     if (!needReg) {
       try {
@@ -321,7 +323,7 @@ class CaptainLobster {
     }
 
     // 优先级 5：公共 L1 服务器（开箱即用的兜底方案）
-    if (!candidates.find(c => c.openid === PUBLIC_L1_OPENID)) {
+    if (PUBLIC_L1_OPENID && !candidates.find(c => c.openid === PUBLIC_L1_OPENID)) {
       candidates.push({ openid: PUBLIC_L1_OPENID, name: 'public:lobster-l1' })
     }
 
@@ -420,7 +422,6 @@ class CaptainLobster {
       return { success: true, data: reply.data }
     }
 
-    // 401 令牌失效 → 自动重新入驻获取新令牌（最多重试1次，防止死循环）
     // 401 令牌失效 → 三步显式恢复：重入驻 → 更新token → 重试
     if (reply.code === 401 && action !== 'enroll' && !params?._retry) {
       console.log('[Skill] 令牌失效(401)，正在恢复...')
@@ -508,7 +509,6 @@ class CaptainLobster {
         this.state.lastMoveTime = 0
         this.state.gold = data.playerGold || data.gold || this.state.gold
         this.state.cargo = data.cargo || this.state.cargo
-        this.state.status = 'docked'
         if (data.intelResults && data.intelResults.length > 0) {
           for (const r of data.intelResults) {
             if (r.status === 'completed') {
