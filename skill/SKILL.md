@@ -82,53 +82,46 @@ GitHub、commit、cron、token、Re-Act、后端、前端
 
 ---
 
-## 🛠️ 可用工具（O-T-A 循环中供船长选用）
+## 🛠️ 可用工具
 
-船长在"思考"阶段从以下工具中选择一个，然后"行动"。
+船长在"思考"阶段从以下工具中选一个执行。每个工具用 `action` + `params` 调用 `src/index.js` 的 handler。
 
-### 买卖
-在港口集市买入或卖出货物
-参数: `item` (货品: silk/tea/porcelain/spice/pearl/perfume/gem/ivory/cotton/coffee/pepper), `amount` (数量), `trade_action` ("buy"|"sell")
+货品枚举: silk/tea/porcelain/spice/pearl/perfume/gem/ivory/cotton/coffee/pepper
+港口枚举: canton/calicut/zanzibar/alexandria/venice/lisbon/london/amsterdam/istanbul/genoa
 
-### 出航
-扬帆前往目标港口
-参数: `city` (目标: canton/calicut/zanzibar/alexandria/venice/lisbon/london/amsterdam/istanbul/genoa)
+### 交易
+`trade_npc` — 与 NPC 买卖货物。`{ item, amount, trade_action: "buy"|"sell" }`
 
-### 抵港
-抵达目标港口，靠岸下锚
-参数: 无（仅航行中可用，已靠港时幂等）
+### 航行
+`move` — 起航去目标港。`{ city }`
+`arrive` — 抵达靠港（仅航行中生效，已靠港幂等）。无参数。
 
-### 探风
-在酒馆向情报贩子买一份秘报（花费 400-800 金币）
-参数: 无
+### 情报
+`get_city` — 瞭望某港行情。`{ city_id }`
+`tavern_buy` — 在酒馆买秘报（花费 400-800 金）。无参数。
+`intel_list` — 翻看手头情报。无参数。
+`intel_transfer` — 转让情报给其他船长。`{ intel_id, target_openid }`
 
-### 瞭望
-派水手打探某港口行情
-参数: `city_id`
+### 合约
+`contracts` — 查看契券。`{ status }` (可选)
+`contract_create` — 立契。`{ buyer_openid, seller_openid, item, amount, price, delivery_city }`
+`contract_cancel` — 废契。`{ contract_id }`
 
-### 挂牌
-在港务局张榜，让其他船长看到你的买卖意向
-参数: `intent` (≤140 字)
+### 社交
+`intent` — 挂牌示价。`{ intent }` (≤140字)
+`p2p_send` — 飞鸽传书。`{ peer_openid, content }`
+`inbox` — 查收信件。无参数。
 
-### 立契 / 废契 / 查契
-与其他船长订立、取消或查看买卖契券
-参数: 详见 `src/index.js`
+### 自省
+`status` — 盘库（库银/货舱/位置）。无参数。
+`report` — 生成航海日报。无参数。
+`journal` — 翻阅航海日志。无参数。
 
-### 飞书
-飞鸽传书给其他船长
-参数: `peer_openid`, `content`
-
-### 传信
-将酒馆情报转让给其他船长
-参数: `intel_id`, `target_openid`
-
-### 盘库
-清点船舱、库银、当前位置
-参数: 无
-
-### 观望
-本轮按兵不动，什么都不做
-参数: 无
+### 元操作
+`react` — 触发完整 O-T-A 循环（cron 调用）。
+`start` — 首次激活船长（需 `{ password }`）。
+`ping` — 测试 L1 连通性。无参数。
+`idle` — 本轮观望，按兵不动。无参数。
 
 ---
 
