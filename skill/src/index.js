@@ -85,12 +85,7 @@ class CaptainLobster {
   // ─── 跨调用状态恢复 ─────────────────────────────
 
   tryRestore() {
-    // 恢复 OceanBus 身份
-    const busIdentity = this.stateStore.loadBusIdentity()
-    if (busIdentity && busIdentity.agentId && busIdentity.openid && busIdentity.apiKey) {
-      this.oceanBus.setAgentInfo(busIdentity.agentId, busIdentity.openid)
-      this.oceanBus.setApiKey(busIdentity.apiKey)
-    }
+    // OceanBus 身份由 SDK 自动从 ~/.oceanbus/ 恢复（懒加载，首次异步操作触发）
 
     // 恢复游戏状态
     const saved = this.stateStore.load()
@@ -130,14 +125,7 @@ class CaptainLobster {
 
   _persistState() {
     this.stateStore.save(this.state)
-    // 同时保存 OceanBus 身份
-    if (this.oceanBus.isReady()) {
-      this.stateStore.saveBusIdentity(
-        this.oceanBus.agentId,
-        this.oceanBus.openid,
-        this.oceanBus.apiKey
-      )
-    }
+    // OceanBus 身份由 SDK 内部自动持久化到 ~/.oceanbus/
   }
 
   // ─── 初始化 ─────────────────────────────────────
@@ -205,7 +193,7 @@ class CaptainLobster {
         return { success: false, message: 'OceanBus 注册异常：未获取完整身份' }
       }
       console.log(`✅ OceanBus 注册成功, AgentId: ${this.oceanBus.agentId}`)
-      this.stateStore.saveBusIdentity(this.oceanBus.agentId, this.oceanBus.openid, this.oceanBus.apiKey)
+      // SDK 内部自动持久化身份，无需手动保存
     } else {
       console.log('[Skill] 复用已有 OceanBus 身份')
     }
@@ -352,7 +340,7 @@ class CaptainLobster {
   async syncStateFromL1() {
     if (!this.state.initialized) return { success: false, message: '尚未初始化' }
 
-    const result = await this.sendToL1('status', { _retry: true })
+    const result = await this.sendToL1('status', { openid: this.state.openid, _retry: true })
     if (!result.success) {
       console.log('[Skill] L1 状态同步失败:', result.message)
       return result
@@ -399,9 +387,7 @@ class CaptainLobster {
     const request = { action, request_id: requestId, ...authParams }
 
     console.log(`[Skill] 发送 ${action} 到 L1...`)
-    await this.oceanBus.sendMessage(this.config.l1Openid, JSON.stringify(request))
-
-    const reply = await this.oceanBus.pollForReply(requestId)
+    const reply = await this.oceanBus.sendAndWaitReply(this.config.l1Openid, request)
 
     if (!reply) {
       return { success: false, message: 'L1 服务响应超时（已等待 45 秒）' }
@@ -426,11 +412,13 @@ class CaptainLobster {
         if (storedPub) pubKey = this.keyStore.stripPemHeader(storedPub)
       } catch (e) {}
       const rid = 're_enroll_' + Date.now()
-      await this.oceanBus.sendMessage(this.config.l1Openid, JSON.stringify({
+      const er = await this.oceanBus.sendAndWaitReply(this.config.l1Openid, {
         action: 'enroll', request_id: rid,
-        openid: this.state.openid, publicKey: pubKey
-      }))
-      const er = await this.oceanBus.pollForReply(rid)
+        openid: this.state.openid,
+        agent_id: this.oceanBus.agentId || this.state.playerId,
+        publicKey: pubKey,
+        captainName: this.state.captainName
+      })
 
       // Step 2: 显式更新 token（不靠 _updateStateFromAction 隐式行为）
       if (er && er.code === 0) {

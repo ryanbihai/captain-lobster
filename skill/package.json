@@ -7,7 +7,16 @@
     "test": "node tests/index.js",
     "dev": "node src/index.js"
   },
-  "keywords": ["openclaw", "skill", "game", "trading", "simulation"],
+  "keywords": [
+    "openclaw",
+    "skill",
+    "game",
+    "trading",
+    "simulation"
+  ],
   "author": "lobster-captain",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "oceanbus": "^0.1.5"
+  }
 }

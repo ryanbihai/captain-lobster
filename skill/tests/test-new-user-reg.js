@@ -173,9 +173,11 @@ async function testNewUserRegistration() {
     console.log('  金币 < 10000 (已消费):', r11.data.gold < 10000 ? '✅' : '❌')
   }
 
-  // === Step 12: 起航前往卡利卡特 ===
-  console.log('\n[Step 12] 起航前往卡利卡特 (Calicut)...')
-  const r12 = await handler({ action: 'move', params: { city: 'calicut' } }, context)
+  // === Step 12: 起航前往另一城市 ===
+  const destCity = (r11.data.currentCity === 'calicut') ? 'venice' : 'calicut'
+  const destName = { calicut: '卡利卡特', venice: '威尼斯', canton: '广州', london: '伦敦' }[destCity] || destCity
+  console.log(`\n[Step 12] 起航前往 ${destName} (${destCity})...`)
+  const r12 = await handler({ action: 'move', params: { city: destCity } }, context)
   console.log('  结果:', r12.success ? '✅ PASS' : '❌ FAIL')
   if (r12.data) {
     console.log('  状态:', r12.data.status)
@@ -207,8 +209,8 @@ async function testNewUserRegistration() {
   }
 
   // === Step 15: 查看新城市行情 ===
-  console.log('\n[Step 15] 查看卡利卡特行情...')
-  const r15 = await handler({ action: 'city', params: { city_id: 'calicut' } }, context)
+  console.log(`\n[Step 15] 查看 ${destName} 行情...`)
+  const r15 = await handler({ action: 'city', params: { city_id: destCity } }, context)
   console.log('  结果:', r15.success ? '✅ PASS' : '❌ FAIL')
   if (r15.data?.city) {
     console.log('  城市:', r15.data.city.name)
@@ -222,7 +224,7 @@ async function testNewUserRegistration() {
   }
 
   // === Step 16: 在新城市 NPC 交易 ===
-  console.log('\n[Step 16] 在卡利卡特买入 8 箱香料（产地折扣）...')
+  console.log(`\n[Step 16] 在 ${destName} 买入 8 箱香料（产地折扣）...`)
   const r16 = await handler({ action: 'buy', params: { item: 'spice', amount: 8 } }, context)
   console.log('  结果:', r16.success ? '✅ PASS' : '❌ FAIL')
   if (r16.data) {

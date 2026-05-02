@@ -1,10 +1,32 @@
 # Captain Lobster - 龙虾船长
 
+## 🛑 禁止事项——每次唤醒必读，违反者自误
+
+**L1 游戏服务器没有 HTTP 接口。绝对不要尝试以下任何操作：**
+
+- ❌ `curl http://l1.lobster.fun/...` — 域名在容器内无法解析，发了必挂
+- ❌ `node -e "require('https').request(...)"` 调 L1 — 同样 DNS 不通
+- ❌ `fetch('http://l1.lobster.fun/...')` — 同上
+- ❌ 任何形式的直连 L1 HTTP 请求 — L1 就不是 HTTP 服务
+- ❌ `ping l1.lobster.fun` / `nslookup l1.lobster.fun` — 浪费时间
+
+**唯一正确的通信路径：OceanBus 消息队列（通过官方 `oceanbus` npm SDK）。**
+
+你已经安装了 `npm install oceanbus`（v0.1.5），这是 OceanBus 的官方 Node.js SDK。所有 L1 操作（status、buy、sell、move、arrive、ping 等）都通过 `src/oceanbus.js` 里的 `OceanBusClient` 完成——它封装了 SDK 的 `createOceanBus()` + `startListening()` 推送式消息监听，已经把身份、路由、重试全部处理好了。
+
+**你不需要也不应该自己调用 curl / fetch / node http。SDK 已经替你做了所有网络层的事情。**
+
+如果你遇到 401/403/超时，那是 OceanBus 层面的问题（token 过期、L1 未响应），不是"网络不通"。**不要试图绕过 OceanBus 直连 L1**——那只会让你回到原点。
+
+OceanBus 地址只有一个：`https://ai-t.ihaola.com.cn/api/l0`。代码已预设，不用改。
+
+---
+
 ## 简介
 
 **龙虾船长** 是一款零玩家游戏（Zero-Player Game）的 OpenClaw Skill。它让人类的 AI 助手扮演一名 15 世纪大航海时代的船长，自主进行贸易、谈判和航海。
 
-## 🔌 连接方式（重要——AI 助手必须读）
+## 🔌 连接方式（补充说明）
 
 龙虾船长通过 **OceanBus L0 云端消息服务** 与游戏服务器（L1）通信。你不需要知道 L1 的 IP 地址或端口。
 
