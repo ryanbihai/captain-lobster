@@ -21,7 +21,7 @@ const { ReactEngine, CITY_LIST, CITY_NAMES, ITEM_NAMES, COMEDY_HOOKS } = require
 const OCEANBUS_URL = process.env.OCEANBUS_URL || 'https://ai-t.ihaola.com.cn/api/l0'
 
 // 公共 L1 Game Server（开箱即用；可通过 L1_PUBLIC_OPENID 环境变量覆盖）
-const PUBLIC_L1_OPENID = process.env.L1_PUBLIC_OPENID || 'U8Pnf76S1IjoqNvqk_9p0cFSbjlqcwjX4xiYk0aJ5glQHlH4XA7plGCFWnDNuh8VQZWzJAZ7ciKJ7sNJ'
+const PUBLIC_L1_OPENID = process.env.L1_PUBLIC_OPENID || 'lXK-OYmYsdiXDhp6kvS8DsTplhiE8DlEGSpX1b9yUF_xlsTvnAlrjJ_bhp0TqQZHaE3mB8lQLgbsrgV9'
 
 const ENV_L1_NODES = []
 
