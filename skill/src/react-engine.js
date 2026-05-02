@@ -8,6 +8,8 @@
  * 决策在 OpenClaw LLM 侧完成（本模块职责：观察采集 + prompt 构造 + 行动执行 + 日志记录）
  */
 
+const SHIP_CAPACITY = 100
+
 const CITY_LIST = ['canton', 'calicut', 'zanzibar', 'alexandria', 'venice', 'lisbon', 'london', 'amsterdam', 'istanbul', 'genoa']
 
 const ITEM_LIST = ['silk', 'tea', 'porcelain', 'spice', 'pearl', 'perfume', 'gem', 'ivory', 'cotton', 'coffee', 'pepper']
@@ -292,11 +294,14 @@ class ReactEngine {
     }
     prompt += `- 库银：**${(obs.captain.gold || 0).toLocaleString()}** 金币\n`
 
-    const cargoStr = Object.entries(obs.captain.cargo || {})
-      .filter(([, v]) => v > 0)
-      .map(([k, v]) => `${v}箱${ITEM_NAMES[k] || k}`)
-      .join('、') || '空'
-    prompt += `- 舱底存：${cargoStr}（满舱可载一百箱）\n`
+    const cargoEntries = Object.entries(obs.captain.cargo || {}).filter(([, v]) => v > 0)
+    const totalCargo = cargoEntries.reduce((s, [, v]) => s + v, 0)
+    const remainingSlots = Math.max(0, SHIP_CAPACITY - totalCargo)
+    const cargoStr = cargoEntries.length > 0
+      ? cargoEntries.map(([k, v]) => `${v}箱${ITEM_NAMES[k] || k}`).join('、')
+      : '空'
+    prompt += `- 舱底存：${cargoStr}\n`
+    prompt += `- 剩余舱位：**${remainingSlots} 箱**（满舱可载 ${SHIP_CAPACITY} 箱）\n`
 
     if (obs.captain.intent) {
       prompt += `- 港务局挂牌：${obs.captain.intent}\n`
@@ -413,6 +418,13 @@ class ReactEngine {
     }
     prompt += '| `观望` | 本轮按兵不动 | (无需) |\n\n'
 
+    // ── 铁律三：舱位限制 ──
+    prompt += `## ⚠️ 舱位铁律（违反者将被舵手驳回）\n\n`
+    prompt += `- 你的船只有 **${SHIP_CAPACITY} 箱** 的装载能力，这是造船时就定死的，不可变更\n`
+    prompt += `- 当前已装 **${totalCargo} 箱**，还能装 **${remainingSlots} 箱**\n`
+    prompt += `- 单次"买卖"的数量不得超过剩余舱位\n`
+    prompt += `- 买入前先算：买入数量 + 已装舱位 ≤ ${SHIP_CAPACITY}\n\n`
+
     // ── 决策输出 ──
     prompt += '**你的决断**（下面的 JSON 是给舵手看的，东家不会看到，放心写真实想法）：\n'
     prompt += '```json\n{"action": "trade_npc", "params": {"item": "silk", "amount": 10, "trade_action": "buy"}, "reason": "广州港丝绸进价低廉，拟购入后运往威尼斯港脱手，预计每箱可赚一百五十金币"}\n```\n'
@@ -427,6 +439,22 @@ class ReactEngine {
    */
   async act(action, params) {
     const result = { action, params, executed: false, result: null }
+
+    // 舱位校验：买入前检查，防止 LLM 超载
+    const isBuy = action === 'buy' || (action === 'trade_npc' && (params.trade_action || 'buy') === 'buy');
+    if (isBuy) {
+      const currentCargo = Object.values(this.captain.state.cargo || {}).reduce((s, v) => s + v, 0);
+      const amount = params.amount || 0;
+      if (currentCargo + amount > SHIP_CAPACITY) {
+        result.result = {
+          success: false,
+          rejected: true,
+          message: '舱位不足！当前已装 ' + currentCargo + ' 箱，剩余 ' + (SHIP_CAPACITY - currentCargo) + ' 箱，无法装入 ' + amount + ' 箱。请减少至 ' + (SHIP_CAPACITY - currentCargo) + ' 箱以内，或先卖出部分货物腾舱。'
+        };
+        result.executed = true;
+        return result;
+      }
+    }
 
     switch (action) {
       case 'buy':
