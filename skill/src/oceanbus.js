@@ -19,6 +19,16 @@ class OceanBusClient {
     this._initPromise = null;
     this._pendingRequests = new Map();
     this._stopListener = null;
+    // 备份身份（来自 state.json 冗余持久化），SDK 内部持久化失效时的保险
+    this._backupAgentId = null;
+    this._backupOpenid = null;
+    this._backupApiKey = null;
+  }
+
+  setBackupIdentity(agentId, openid, apiKey) {
+    if (agentId) this._backupAgentId = agentId;
+    if (openid) this._backupOpenid = openid;
+    if (apiKey) this._backupApiKey = apiKey;
   }
 
   // ── 懒初始化（首次异步操作时自动触发）──
@@ -38,9 +48,30 @@ class OceanBusClient {
         this.openid = identity.openid;
         this.apiKey = 'managed-by-sdk';
         this._startListener();
+        return;
       }
     } catch (e) {
-      // 无已有身份，等 register() 时创建
+      // SDK 内部持久化无身份，尝试备份恢复
+    }
+
+    // SDK 自动加载失败 → 用 state.json 的冗余备份恢复
+    if (this._backupAgentId && this._backupApiKey) {
+      await this.ob.destroy();
+      this.ob = await createOceanBus({
+        baseUrl: this.baseUrl,
+        identity: { agent_id: this._backupAgentId, api_key: this._backupApiKey }
+      });
+      try {
+        const identity = await this.ob.whoami();
+        if (identity && identity.agent_id && identity.openid) {
+          this.agentId = identity.agent_id;
+          this.openid = identity.openid;
+          this.apiKey = this._backupApiKey;
+          this._startListener();
+        }
+      } catch (e) {
+        // 备份也失效，需要重新注册
+      }
     }
   }
 

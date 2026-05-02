@@ -49,7 +49,11 @@ class StateStore {
         addressBook: state.addressBook || {},
         l1Openid: state.l1Openid || null,
         ownerName: state.ownerName || null,
-        keyIdentity: state.keyIdentity || 'default'
+        keyIdentity: state.keyIdentity || 'default',
+        // OceanBus 身份冗余备份（SDK 内部持久化的保险）
+        oceanBusApiKey: state.oceanBusApiKey || null,
+        oceanBusAgentId: state.oceanBusAgentId || null,
+        oceanBusOpenid: state.oceanBusOpenid || null
       },
       game: {
         gold: state.gold,
@@ -102,6 +106,9 @@ class StateStore {
         l1Openid: data.identity?.l1Openid || null,
         ownerName: data.identity?.ownerName || null,
         keyIdentity: data.identity?.keyIdentity || 'default',
+        oceanBusApiKey: data.identity?.oceanBusApiKey || null,
+        oceanBusAgentId: data.identity?.oceanBusAgentId || null,
+        oceanBusOpenid: data.identity?.oceanBusOpenid || null,
         gold: data.game?.gold || 0,
         cargo: data.game?.cargo || {},
         currentCity: data.game?.currentCity || 'canton',

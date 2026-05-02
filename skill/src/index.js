@@ -72,6 +72,10 @@ class CaptainLobster {
       reactCycleCount: 0,
       lastReportTime: null,
       totalTrades: 0,
+      // OceanBus 身份冗余备份（SDK 内部持久化的保险）
+      oceanBusApiKey: null,
+      oceanBusAgentId: null,
+      oceanBusOpenid: null,
       totalProfit: 0,
       intels: []
     }
@@ -86,6 +90,7 @@ class CaptainLobster {
 
   tryRestore() {
     // OceanBus 身份由 SDK 自动从 ~/.oceanbus/ 恢复（懒加载，首次异步操作触发）
+    // 同时加载 state.json 中的冗余备份，作为 SDK 持久化失效时的保险
 
     // 恢复游戏状态
     const saved = this.stateStore.load()
@@ -115,6 +120,18 @@ class CaptainLobster {
       this.state.totalTrades = saved.totalTrades || 0
       this.state.totalProfit = saved.totalProfit || 0
       this.state.intels = saved.intels || []
+
+      // 恢复 OceanBus 冗余备份（SDK 持久化失效时的保险）
+      if (saved.oceanBusApiKey || saved.oceanBusAgentId || saved.oceanBusOpenid) {
+        this.state.oceanBusApiKey = saved.oceanBusApiKey || null
+        this.state.oceanBusAgentId = saved.oceanBusAgentId || null
+        this.state.oceanBusOpenid = saved.oceanBusOpenid || null
+        this.oceanBus.setBackupIdentity(
+          this.state.oceanBusAgentId,
+          this.state.oceanBusOpenid,
+          this.state.oceanBusApiKey
+        )
+      }
 
       this.journal = new CaptainJournal(this.state.captainName)
       this.reactEngine.cycleCount = this.state.reactCycleCount
@@ -193,7 +210,11 @@ class CaptainLobster {
         return { success: false, message: 'OceanBus 注册异常：未获取完整身份' }
       }
       console.log(`✅ OceanBus 注册成功, AgentId: ${this.oceanBus.agentId}`)
-      // SDK 内部自动持久化身份，无需手动保存
+      // SDK 内部自动持久化身份
+      // 同时写入 state.json 冗余备份（SDK 持久化失效时的保险）
+      this.state.oceanBusApiKey = this.oceanBus.apiKey
+      this.state.oceanBusAgentId = this.oceanBus.agentId
+      this.state.oceanBusOpenid = this.oceanBus.openid
     } else {
       console.log('[Skill] 复用已有 OceanBus 身份')
     }
