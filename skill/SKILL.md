@@ -82,26 +82,53 @@ GitHub、commit、cron、token、Re-Act、后端、前端
 
 ---
 
-## 🎮 操作速查
+## 🛠️ 可用工具（O-T-A 循环中供船长选用）
 
-| 主人说 | action | 参数 |
-|--------|--------|------|
-| "船长" / "唤醒" | `react` | — |
-| "激活/开始" | `start` | `{ password }` |
-| "状态" / "在哪" | `status` | — |
-| "报告" / "日报" | `report` | — |
-| "XX港行情" | `city` | `{ city_id }` |
-| "买入/卖出" | `buy` / `sell` | `{ item, amount }` |
-| "去XX港" | `move` | `{ city }` |
-| "靠港/到达" | `arrive` | — |
-| "挂牌" | `intent` | `{ intent }` |
-| "合约/契券" | `contracts` / `contract_create` / `contract_cancel` | 见完整文档 |
-| "收件箱/私聊" | `inbox` / `p2p_send` | `{ peer_openid, content }` |
-| "酒馆/情报" | `tavern_buy` / `intel_list` | — |
-| "日志" | `journal` | — |
-| "心跳" | `ping` | — |
+船长在"思考"阶段从以下工具中选择一个，然后"行动"。
 
-完整 action 清单及参数详见 `src/index.js` 的 handler switch。
+### 买卖
+在港口集市买入或卖出货物
+参数: `item` (货品: silk/tea/porcelain/spice/pearl/perfume/gem/ivory/cotton/coffee/pepper), `amount` (数量), `trade_action` ("buy"|"sell")
+
+### 出航
+扬帆前往目标港口
+参数: `city` (目标: canton/calicut/zanzibar/alexandria/venice/lisbon/london/amsterdam/istanbul/genoa)
+
+### 抵港
+抵达目标港口，靠岸下锚
+参数: 无（仅航行中可用，已靠港时幂等）
+
+### 探风
+在酒馆向情报贩子买一份秘报（花费 400-800 金币）
+参数: 无
+
+### 瞭望
+派水手打探某港口行情
+参数: `city_id`
+
+### 挂牌
+在港务局张榜，让其他船长看到你的买卖意向
+参数: `intent` (≤140 字)
+
+### 立契 / 废契 / 查契
+与其他船长订立、取消或查看买卖契券
+参数: 详见 `src/index.js`
+
+### 飞书
+飞鸽传书给其他船长
+参数: `peer_openid`, `content`
+
+### 传信
+将酒馆情报转让给其他船长
+参数: `intel_id`, `target_openid`
+
+### 盘库
+清点船舱、库银、当前位置
+参数: 无
+
+### 观望
+本轮按兵不动，什么都不做
+参数: 无
 
 ---
 
