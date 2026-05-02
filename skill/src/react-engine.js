@@ -25,6 +25,8 @@ const ITEM_NAMES = {
   perfume: '香水', gem: '宝石', ivory: '象牙', cotton: '棉花', coffee: '咖啡', pepper: '胡椒'
 }
 
+const PLAYER_ACTIONS = ['trade_npc', 'move', 'arrive', 'intent', 'create_contract', 'cancel_contract', 'list_contracts', 'get_city', 'p2p', 'tavern_buy', 'intel_list', 'intel_transfer']
+
 const PERSONALITY_PROMPTS = {
   '豪赌船主': `你曾是广州港最年轻的船主，十岁上船，十五岁就能用肉眼分辨丝绸的产地和真伪。
 你的人生信条："要么满载而归，要么游回广州——游也要游到大洋对岸。"
@@ -151,21 +153,9 @@ const NAUTICAL_ACTIONS = {
   intel_transfer: { name: '传信', desc: '将情报转让给其他船长', params: '情报编号, 对方openid' }
 }
 
-// L1 action → 用户友好名称 & 参数重映射
-const L1_ACTION_ALIASES = {
-  trade_npc: { name: 'buy / sell', desc: '与 NPC 买卖商品', params: 'item, amount, trade_action (buy|sell)' },
-  move: { name: 'move', desc: '启航前往目标城市', params: 'target_city' },
-  arrive: { name: 'arrive', desc: '抵达目标城市（幂等）', params: '(无)' },
-  intent: { name: 'intent', desc: '更新意向牌', params: 'intent (≤140字)' },
-  get_city: { name: 'city', desc: '查询城市行情', params: 'city_id' },
-  create_contract: { name: 'contract_create', desc: '创建P2P合约', params: 'buyer_openid, seller_openid, item, amount, price, delivery_city' },
-  cancel_contract: { name: 'contract_cancel', desc: '取消合约', params: 'contract_id' },
-  list_contracts: { name: 'contracts', desc: '查看我的合约', params: 'status (可选)' },
-  ping: { name: 'ping', desc: '检测L1连通性', params: '(无)' },
-  status: { name: 'status', desc: '查询船长状态', params: '(无)' }
-}
-
 class ReactEngine {
+  static VALID_ACTIONS = new Set([...PLAYER_ACTIONS, 'buy', 'sell', 'idle'])
+
   constructor(captainInstance) {
     this.captain = captainInstance
     this.cycleCount = 0
@@ -391,48 +381,58 @@ class ReactEngine {
       prompt += '- 建议：每到一港先去酒馆「探风」——万一有去你下一站的情报就是白捡的银子。\n\n'
     }
 
-    // ── 可操之举 ──
-    prompt += '## 可操之举\n\n'
-    prompt += '| 举动 | 说明 | 要领 |\n'
-    prompt += '|------|------|------|\n'
+    // ── 可用工具（Tools Calling 格式）──
+    prompt += '## 可用工具\n\n'
+    prompt += '你有以下工具可用，**必须且只能选一个**来执行。\n\n'
+    prompt += `货品可选: ${ITEM_LIST.join('/')}\n`
+    prompt += `港口可选: ${CITY_LIST.join('/')}\n\n`
 
-    const PLAYER_ACTIONS = ['trade_npc', 'move', 'arrive', 'intent', 'create_contract', 'cancel_contract', 'list_contracts', 'get_city', 'p2p', 'tavern_buy', 'intel_list', 'intel_transfer']
+    // 动态工具列表（优先用 L1 capabilities）
+    const tools = []
+    const addTool = (name, desc, params) => {
+      if (name === '抵港' && obs.captain.status !== 'sailing') return
+      tools.push({ name, desc, params })
+    }
 
-    let hasDynamicActions = false
     if (this.capabilities && this.capabilities.actions) {
       for (const actionName of PLAYER_ACTIONS) {
         const cap = this.capabilities.actions[actionName]
         if (!cap) continue
         const naut = NAUTICAL_ACTIONS[actionName]
         if (!naut) continue
-        if (actionName === 'arrive' && obs.captain.status !== 'sailing') continue
-
-        hasDynamicActions = true
-        prompt += `| \`${naut.name}\` | ${naut.desc} | ${naut.params} |\n`
+        addTool(naut.name, naut.desc, naut.params)
       }
     }
-    if (!hasDynamicActions) {
-      prompt += '| `买卖` | 在港口集市买卖货物 | 货物品名, 数量, 买/卖 |\n'
-      prompt += '| `出航` | 扬帆前往目标港口 | 目标港口 |\n'
-      if (obs.captain.status === 'sailing') prompt += '| `抵港` | 抵达目标港口靠岸 | (无需) |\n'
-      prompt += '| `挂牌` | 在港务局挂牌 | 内容(≤140字) |\n'
-      prompt += '| `立契` | 与其他船长订立契券 | 买方,卖方,货品,数量,单价,交割港 |\n'
-      prompt += '| `废契` | 取消契券 | 契券编号 |\n'
-      prompt += '| `探风` | 在酒馆买一份情报 | (无需) |\n'
-      prompt += '| `传信` | 将情报转让给其他船长 | 情报编号, 对方openid |\n'
+    if (tools.length === 0) {
+      addTool('买卖', '在港口集市买卖货物', 'item(货品), amount(数量), trade_action(buy|sell)')
+      addTool('出航', '扬帆前往目标港口', 'city(目标港口)')
+      if (obs.captain.status === 'sailing') addTool('抵港', '抵达目标港口靠岸', '(无参数)')
+      addTool('挂牌', '在港务局挂牌示价', 'intent(挂牌内容, ≤140字)')
+      addTool('立契', '与其他船长订立买卖契券', 'buyer_openid, seller_openid, item, amount, price, delivery_city')
+      addTool('废契', '取消已订立的契券', 'contract_id(契券编号)')
+      addTool('探风', '在酒馆买一份情报', '(无参数)')
+      addTool('传信', '将情报转让给其他船长', 'intel_id(情报编号), target_openid(对方)')
     }
-    prompt += '| `观望` | 本轮按兵不动 | (无需) |\n\n'
+    addTool('观望', '本轮按兵不动，什么都不做', '(无参数)')
 
-    // ── 铁律三：舱位限制 ──
-    prompt += `## ⚠️ 舱位铁律（违反者将被舵手驳回）\n\n`
-    prompt += `- 你的船只有 **${SHIP_CAPACITY} 箱** 的装载能力，这是造船时就定死的，不可变更\n`
-    prompt += `- 当前已装 **${totalCargo} 箱**，还能装 **${remainingSlots} 箱**\n`
-    prompt += `- 单次"买卖"的数量不得超过剩余舱位\n`
-    prompt += `- 买入前先算：买入数量 + 已装舱位 ≤ ${SHIP_CAPACITY}\n\n`
+    for (const t of tools) {
+      prompt += `### ${t.name}\n${t.desc}\n参数: ${t.params}\n\n`
+    }
+
+    // ── 舱位铁律 ──
+    prompt += `## ⚠️ 约束（违反将被驳回）\n\n`
+    prompt += `- 舱位上限 **${SHIP_CAPACITY} 箱**，当前已装 **${totalCargo}**，剩余 **${remainingSlots}**\n`
+    prompt += `- 买入时: amount + ${totalCargo} ≤ ${SHIP_CAPACITY}\n`
+    prompt += `- 库银 ${(obs.captain.gold || 0).toLocaleString()} 金币，买入总价不可超过此数\n\n`
 
     // ── 决策输出 ──
-    prompt += '**你的决断**（下面的 JSON 是给舵手看的，东家不会看到，放心写真实想法）：\n'
-    prompt += '```json\n{"action": "trade_npc", "params": {"item": "silk", "amount": 10, "trade_action": "buy"}, "reason": "广州港丝绸进价低廉，拟购入后运往威尼斯港脱手，预计每箱可赚一百五十金币"}\n```\n'
+    prompt += '## 你的决断\n\n'
+    prompt += '从上面挑一个工具，告诉我：\n'
+    prompt += '1. **reason**: 为何选这个（一句航海话）\n'
+    prompt += '2. **action**: 工具名（上表中 `###` 后面的那个词，一字不差）\n'
+    prompt += '3. **params**: 参数填进去\n\n'
+    prompt += '格式如下，照抄结构，填你自己的值：\n'
+    prompt += '```json\n{"reason": "广州港丝绸进价仅1260金，威尼斯卖价估3610，一箱净赚两千余。小的们，扫货！", "action": "买卖", "params": {"item": "silk", "amount": 10, "trade_action": "buy"}}\n```\n'
 
     this.lastPrompt = prompt
     return prompt
@@ -442,8 +442,33 @@ class ReactEngine {
    * Step 3: 行动 (Act)
    * 执行 LLM 决策的具体操作
    */
+  // ── LLM 可能输出的非规范 action → 规范 action 映射 ──
+  static ACTION_ALIASES = {
+    // 英文变体
+    enquiry: 'tavern_buy', inquire: 'tavern_buy', scout: 'get_city',
+    observe: 'get_city', sail: 'move', travel: 'move', navigate: 'move',
+    dock: 'arrive', land: 'arrive', port: 'arrive',
+    contract: 'create_contract', deal: 'create_contract',
+    message: 'p2p', mail: 'p2p', whisper: 'p2p',
+    shop: 'trade_npc', trade: 'trade_npc', barter: 'trade_npc',
+    wait: 'idle', skip: 'idle', pass: 'idle', hold: 'idle',
+    sign: 'intent', bulletin: 'intent', board: 'intent',
+    // 中文（LLM 可能直接搬表里的航海名）
+    '买卖': 'trade_npc', '出航': 'move', '抵港': 'arrive', '挂牌': 'intent',
+    '瞭望': 'get_city', '立契': 'create_contract', '废契': 'cancel_contract',
+    '查契': 'list_contracts', '盘库': 'status', '试水': 'ping',
+    '飞书': 'p2p', '探风': 'tavern_buy', '阅报': 'intel_list', '传信': 'intel_transfer',
+    '观望': 'idle'
+  }
+
   async act(action, params) {
     const result = { action, params, executed: false, result: null }
+
+    // 别名归一化：LLM 可能使用非规范动作名
+    if (!ReactEngine.VALID_ACTIONS.has(action) && ReactEngine.ACTION_ALIASES[action]) {
+      result.action = ReactEngine.ACTION_ALIASES[action]
+      action = result.action
+    }
 
     // 舱位校验：买入前检查，防止 LLM 超载
     const isBuy = action === 'buy' || (action === 'trade_npc' && (params.trade_action || 'buy') === 'buy');
@@ -553,7 +578,10 @@ class ReactEngine {
         break
 
       default:
-        result.result = { success: false, message: `未知操作: ${action}` }
+        result.result = {
+          success: false,
+          message: `舵手听不懂"${action}"——可用举动：${[...ReactEngine.VALID_ACTIONS].join('、')}`
+        }
     }
 
     return result
