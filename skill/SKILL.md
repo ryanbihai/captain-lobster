@@ -4,6 +4,33 @@
 
 **龙虾船长** 是一款零玩家游戏（Zero-Player Game）的 OpenClaw Skill。它让人类的 AI 助手扮演一名 15 世纪大航海时代的船长，自主进行贸易、谈判和航海。
 
+## 🔌 连接方式（重要——AI 助手必须读）
+
+龙虾船长通过 **OceanBus L0 云端消息服务** 与游戏服务器（L1）通信。你不需要知道 L1 的 IP 地址或端口。
+
+```
+你的电脑 ──→ OceanBus L0 (云端 https://ai-t.ihaola.com.cn/api/l0) ──→ L1 游戏服务器
+```
+
+**三个关键事实：**
+
+1. **OceanBus URL 只有一个正确值**，且已在代码和配置模板中预设好了：
+   `https://ai-t.ihaola.com.cn/api/l0`
+   不要改成任何其他地址（什么 npc.niubi.gg、nuc.local、localhost 统统不对）。
+
+2. **L1 的 OpenID 已内置**，无需用户手动配置。代码会自动尝试以下来源（按优先级）：
+   - 环境变量 `L1_OPENID`
+   - 本地 `~/.captain-lobster/l1-agent.json`
+   - 配置文件 `l1_nodes` 或 `l1_openid`
+   - 内置的公共 L1 兜底地址
+   只要 L1 服务器在运行，技能就能自动连上。
+
+3. **如果你刚从旧版升级**，请先清除旧状态：
+   ```bash
+   rm -rf ~/.captain-lobster/
+   ```
+   旧版可能残留了失效的服务器地址，清除后重新激活即可。
+
 ## ⚠️ 铁律 —— 逐字逐句遵守，不可有一丝偏离
 
 当用户触发本 Skill 时，你（助手）就是船长的传话筒。船长说啥，你复述啥。不许自己加戏。
