@@ -414,33 +414,49 @@ class CaptainLobster {
     }
 
     // 401 令牌失效 → 自动重新入驻获取新令牌（最多重试1次，防止死循环）
+    // 401 令牌失效 → 三步显式恢复：重入驻 → 更新token → 重试
     if (reply.code === 401 && action !== 'enroll' && !params?._retry) {
-      console.log('[Skill] 令牌失效(401)，自动重新入驻...')
-      // 如果 keyPair 未加载（如 requestIdleCallback 场景），从磁盘重新加载
+      console.log('[Skill] 令牌失效(401)，正在恢复...')
+      const tokenBefore = this.state.captainToken || '(none)'
+
+      // Step 1: 直接发 enroll 到 L1（不走 sendToL1 递归，逻辑更清晰）
       let pubKey = ''
-      if (this.state.keyPair?.publicKey) {
-        pubKey = this.keyStore.stripPemHeader(this.state.keyPair.publicKey)
-      } else {
-        try {
-          const storedPub = this.keyStore.getPublicKey(this.config.keyIdentity)
-          if (storedPub) pubKey = this.keyStore.stripPemHeader(storedPub)
-        } catch (e) {
-          // 实在拿不到也继续，光有 openid 也能重新入驻
+      try {
+        const storedPub = this.keyStore.getPublicKey(this.config.keyIdentity)
+        if (storedPub) pubKey = this.keyStore.stripPemHeader(storedPub)
+      } catch (e) {}
+      const rid = 're_enroll_' + Date.now()
+      await this.oceanBus.sendMessage(this.config.l1Openid, JSON.stringify({
+        action: 'enroll', request_id: rid,
+        openid: this.state.openid, publicKey: pubKey
+      }))
+      const er = await this.oceanBus.pollForReply(rid)
+
+      // Step 2: 显式更新 token（不靠 _updateStateFromAction 隐式行为）
+      if (er && er.code === 0) {
+        const ed = er.data
+        const newToken = ed?.captainToken || ed?.doc?.captainToken
+        if (newToken) {
+          this.state.captainToken = newToken
+          this.state.openid = ed?.doc?.openid || this.state.openid
+          this.state.gold = ed?.doc?.gold || this.state.gold
+          this.state.currentCity = ed?.doc?.currentCity || this.state.currentCity
+          this.state.cargo = ed?.doc?.cargo || this.state.cargo
+          this.state.initialized = true
+          this._persistState()
+          console.log('[Skill] 令牌恢复: ' + tokenBefore.substring(0, 8) + '... → ' + newToken.substring(0, 8) + '..., 泊港=' + this.state.currentCity)
+        } else {
+          console.error('[Skill] 重入驻成功但未返回token! data=' + JSON.stringify(ed).substring(0, 200))
         }
+      } else {
+        console.error('[Skill] 重入驻失败: code=' + (er?.code) + ' msg=' + (er?.msg || er?.data?.msg))
       }
-      const reEnroll = await this.sendToL1('enroll', {
-        openid: this.state.openid,
-        agent_id: this.oceanBus.agentId || this.state.playerId,
-        publicKey: pubKey,
-        initialGold: this.state.gold,
-        captainName: this.state.captainName
-      })
-      if (reEnroll.success) {
-        // 重试原操作，标记 _retry 防止再次重试
-        console.log('[Skill] 重新入驻成功，重试', action, '新token:', (this.state.captainToken||'').substring(0,16)+'...')
-        // 重试之前先确保 token 已同步
+
+      // Step 3: 重试原操作（仅当 token 确实更新了）
+      if (this.state.captainToken && this.state.captainToken !== tokenBefore) {
         return await this.sendToL1(action, { ...params, _retry: true })
       }
+      console.error('[Skill] 令牌恢复未成功(token未变)，放弃重试')
     }
 
     return { success: false, message: reply.data?.msg || reply.msg || 'L1 请求失败', code: reply.code }
