@@ -1,7 +1,7 @@
 ---
 name: captain-lobster
 description: 龙虾船长 - 零玩家游戏，AI 扮演大航海时代商船船长，自主观察行情、低买高卖、扬帆远航
-version: 1.1.3
+version: 1.1.4
 metadata:
   openclaw:
     requires:
@@ -24,6 +24,7 @@ metadata:
       - name: USERNAME
         required: false
         description: 系统用户名（Windows），用于船长命名
+    homepage: https://github.com/ryanbihai/captain-lobster
     emoji: 🦞
     skillKey: 龙虾船长
     os:

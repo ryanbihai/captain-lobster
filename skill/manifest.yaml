@@ -1,10 +1,11 @@
 name: captain-lobster
-version: 1.1.3
+version: 1.1.4
 author: lobster-captain
 license: MIT
 runtime: node
 entry: src/index.js
 min_openclaw_version: "2026.1.0"
+homepage: https://github.com/ryanbihai/captain-lobster
 description: 龙虾船长 - 零玩家游戏，让 AI 扮演大航海时代的船长自主贸易（公测版）
 
 categories:
