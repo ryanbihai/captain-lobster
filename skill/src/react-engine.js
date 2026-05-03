@@ -293,6 +293,14 @@ class ReactEngine {
     prompt += `- 舱底存：${cargoStr}\n`
     prompt += `- 剩余舱位：**${remainingSlots} 箱**（满舱可载 ${SHIP_CAPACITY} 箱）\n`
 
+    const intelCount = (obs.intels || []).filter(i => i.status === 'active').length
+    const intelMax = 3
+    if (intelCount > 0) {
+      prompt += `- 怀揣情报：**${intelCount} 份**（最多 ${intelMax} 份）\n`
+    } else {
+      prompt += `- 怀揣情报：无（最多 ${intelMax} 份，可去酒馆探风）\n`
+    }
+
     if (obs.captain.intent) {
       prompt += `- 港务局挂牌：${obs.captain.intent}\n`
     }
@@ -380,6 +388,7 @@ class ReactEngine {
       prompt += '- 送人(passenger)：赏金4000-6000，利润最高\n'
       prompt += '- 折扣(discount)：赏金2000-3500，抵港还附赠当地特产2-5箱\n'
       prompt += '- 三个时辰内有效，限持三份。**不顺路的不要买**——买了送不到就是白扔钱\n'
+      prompt += '- 注意：酒馆不是每回都有情报贩子。探空了别纠结，直接做买卖去——港口集市天天开门\n'
       prompt += '- 建议：先决定了下一站去哪，再进酒馆探风。去同一个方向才买\n\n'
     }
 
@@ -390,9 +399,11 @@ class ReactEngine {
     prompt += `港口可选: ${CITY_LIST.join('/')}\n\n`
 
     // 动态工具列表（优先用 L1 capabilities）
+    const intelActive = (obs.intels || []).filter(i => i.status === 'active').length
     const tools = []
     const addTool = (name, desc, params) => {
       if (name === '抵港' && obs.captain.status !== 'sailing') return
+      if (name === '探风' && intelActive >= 3) return  // 情报已满，不可再买
       tools.push({ name, desc, params })
     }
 
