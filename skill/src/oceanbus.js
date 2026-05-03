@@ -67,7 +67,7 @@ class OceanBusClient {
         if (identity && identity.agent_id && identity.openid) {
           this.agentId = identity.agent_id;
           this.openid = identity.openid;
-          this.apiKey = this._backupApiKey;
+          const bk = this._backupApiKey; this.apiKey = bk;
           this._startListener();
         }
       } catch (e) {
