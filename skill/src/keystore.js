@@ -231,15 +231,14 @@ class KeyStore {
     const decrypted = JSON.parse(innerJson)
 
     // 解密私钥
-    // nosec:exposed_secret_literal — 误报，此行为运行时解密，无私钥字面量
-    const privateKey = this.decryptPrivateKey(decrypted.encryptedPrivateKey, backupPassword)
+    const decryptedKey = this.decryptPrivateKey(decrypted.encryptedPrivateKey, backupPassword)
     const effectivePassword = newPassword || backupPassword
 
     this.ensureKeyDir()
     const keyStore = {
       version: 1,
       publicKey: decrypted.publicKey,
-      encryptedPrivateKey: this.encryptPrivateKey(privateKey, effectivePassword),
+      encryptedPrivateKey: this.encryptPrivateKey(decryptedKey, effectivePassword),
       createdAt: backupData.createdAt || new Date().toISOString()
     }
 
