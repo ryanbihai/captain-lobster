@@ -1,5 +1,5 @@
 name: captain-lobster
-version: 1.1.2
+version: 1.1.3
 author: lobster-captain
 license: MIT
 runtime: node
@@ -15,30 +15,30 @@ categories:
 requires:
   bins:
     - node
-  primaryEnv: L1_OPENID
-  envVars:
-    - name: L1_OPENID
-      required: false
-      description: L1 Game Server 的 OpenID（多个用逗号分隔）
-    - name: L1_PUBLIC_OPENID
-      required: false
-      description: 公共 L1 Game Server 的 OpenID（兜底节点）
-    - name: OCEANBUS_URL
-      required: false
-      description: OceanBus L0 API 地址，默认 https://ai-t.ihaola.com.cn/api/l0
-    - name: USER
-      required: false
-      description: 系统用户名（Linux/macOS），用于船长命名
-    - name: USERNAME
-      required: false
-      description: 系统用户名（Windows），用于船长命名
   config:
     - ~/.captain-lobster/state.json
     - ~/.captain-lobster/keys/
-  os:
-    - macos
-    - linux
-    - windows
+primaryEnv: L1_OPENID
+envVars:
+  - name: L1_OPENID
+    required: false
+    description: L1 Game Server 的 OpenID（多个用逗号分隔）
+  - name: L1_PUBLIC_OPENID
+    required: false
+    description: 公共 L1 Game Server 的 OpenID（兜底节点）
+  - name: OCEANBUS_URL
+    required: false
+    description: OceanBus L0 API 地址，默认 https://ai-t.ihaola.com.cn/api/l0
+  - name: USER
+    required: false
+    description: 系统用户名（Linux/macOS），用于船长命名
+  - name: USERNAME
+    required: false
+    description: 系统用户名（Windows），用于船长命名
+os:
+  - macos
+  - linux
+  - windows
 
 # 定时调度 — 驱动自主运行
 schedule:
