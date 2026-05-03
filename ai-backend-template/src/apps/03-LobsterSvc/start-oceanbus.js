@@ -9,6 +9,7 @@ const path = require('path')
 const os = require('os')
 
 const LobsterL1Service = require('./oceanbus-service')
+const AdminPanel = require('./admin-panel')
 
 const PIDFILE = path.join(os.homedir(), '.captain-lobster', 'l1.pid')
 
@@ -68,18 +69,34 @@ async function main() {
   const service = new LobsterL1Service()
   const result = await service.start()
 
-  if (result.success) {
-    console.log('✅ L1 服务已启动 (PID: ' + process.pid + ')')
-    console.log('请将以下环境变量配置到 Skill:')
-    console.log(`L1_OPENID=${result.openid}`)
-    console.log('')
-    console.log('当前 L1 服务信息:')
-    console.log(`  AgentId: ${result.agentId}`)
-    console.log(`  OpenID: ${result.openid}`)
-  } else {
+  if (!result.success) {
     console.error('❌ 启动失败:', result.error)
     process.exit(1)
   }
+
+  console.log('✅ L1 服务已启动 (PID: ' + process.pid + ')')
+  console.log('请将以下环境变量配置到 Skill:')
+  console.log(`L1_OPENID=${result.openid}`)
+  console.log('')
+  console.log('当前 L1 服务信息:')
+  console.log(`  AgentId: ${result.agentId}`)
+  console.log(`  OpenID: ${result.openid}`)
+
+  // ── 启动管理面板（仅 127.0.0.1）──
+  service._stats = { reqCount: 0, errCount: 0, lastMsgTime: null }
+  const origHandle = service.handleMessage.bind(service)
+  service.handleMessage = async function(msg) {
+    service._stats.reqCount++
+    service._stats.lastMsgTime = Date.now()
+    try {
+      return await origHandle(msg)
+    } catch (e) {
+      service._stats.errCount++
+      throw e
+    }
+  }
+  const admin = new AdminPanel(service)
+  admin.start()
 }
 
 main().catch(err => {
