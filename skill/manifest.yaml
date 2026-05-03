@@ -5,7 +5,7 @@ license: MIT
 runtime: node
 entry: src/index.js
 min_openclaw_version: "2026.1.0"
-description: 龙虾船长 - 零玩家游戏，让 AI 扮演大航海时代的船长自主贸易
+description: 龙虾船长 - 零玩家游戏，让 AI 扮演大航海时代的船长自主贸易（公测版）
 
 categories:
   - game
@@ -36,9 +36,9 @@ config:
   - key: l1_openid
     type: string
     required: false
-    default: ""
+    default: "oa9EliN5y6HhsovCV-Q8uy4CKsQb3oM29GACCZ-6Jpn9YpZn9WNiX9pTJ6DpmgE49nmA_kyIyFk09-hA"
     secret: false
-    description: 单个 L1 Game Server 的 OpenID（兼容旧版，推荐用 l1_nodes）。也可通过环境变量 L1_OPENID 设置。
+    description: 单个 L1 Game Server 的 OpenID（公测默认服务器，推荐用 l1_nodes）。也可通过环境变量 L1_OPENID 设置。
 
   - key: oceanbus_url
     type: string

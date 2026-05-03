@@ -14,8 +14,8 @@ oceanbus_url: "https://ai-t.ihaola.com.cn/api/l0"
 # 或在环境变量中设置 L1_OPENID
 # ═══════════════════════════════════════════════════════
 l1_nodes:
-  - openid: "U8Pnf76S1IjoqNvqk_9p0cFSbjlqcwjX4xiYk0aJ5glQHlH4XA7plGCFWnDNuh8VQZWzJAZ7ciKJ7sNJ"
-    name: "龙虾船长公共 L1"
+  - openid: "oa9EliN5y6HhsovCV-Q8uy4CKsQb3oM29GACCZ-6Jpn9YpZn9WNiX9pTJ6DpmgE49nmA_kyIyFk09-hA"
+    name: "龙虾船长公测 L1"
 
 # 初始金币（默认 20000）
 initial_gold: 10000
