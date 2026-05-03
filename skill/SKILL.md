@@ -1,7 +1,7 @@
 ---
 name: captain-lobster
 description: 龙虾船长 - 零玩家游戏，AI 扮演大航海时代商船船长，自主观察行情、低买高卖、扬帆远航
-version: 1.2.3
+version: 1.2.4
 metadata:
   openclaw:
     requires:
@@ -89,6 +89,8 @@ L1 游戏服务器是**唯一权威数据源**。本地状态只是缓存。
 - 身份自动从 `~/.oceanbus/` 恢复，首次启动自动注册
 - L1 地址通过 `L1_OPENID` 环境变量或 `~/.captain-lobster/l1-agent.json` 自动探测
 - **不要**尝试 curl/fetch/node-http 直连 L1。L1 不是 HTTP 服务，没有 IP 没有端口。SDK 已处理一切
+
+⚠️ **本游戏会与外部服务通信。** 游戏消息（飞鸽传书、合约、情报）经 OceanBus/L1 中继传输，不是端到端加密。**请不要在游戏内放置真正的秘密、密码或个人信息。**
 
 ---
 
