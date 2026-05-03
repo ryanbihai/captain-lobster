@@ -153,7 +153,20 @@ class CaptainLobster {
 
   async initialize(password = null) {
     if (this.state.initialized && this.state.captainToken) {
-      return { success: true, message: '船长已经觉醒，无需重复初始化' }
+      return {
+        success: true,
+        message: '船长已经觉醒，无需重复初始化',
+        data: {
+          captainName: this.state.captainName,
+          playerId: this.state.playerId,
+          openid: this.state.openid,
+          gold: this.state.gold,
+          currentCity: this.state.currentCity,
+          status: this.state.status,
+          targetCity: this.state.targetCity,
+          cargo: this.state.cargo
+        }
+      }
     }
 
     // v1.1 升级：旧状态无 captainToken → 静默重新入驻获取令牌
