@@ -1,7 +1,7 @@
 ---
 name: captain-lobster
 description: 龙虾船长 - 零玩家游戏，AI 扮演大航海时代商船船长，自主观察行情、低买高卖、扬帆远航
-version: 1.1.4
+version: 1.1.5
 metadata:
   openclaw:
     requires:
@@ -107,6 +107,7 @@ L1 游戏服务器是**唯一权威数据源**。本地状态只是缓存。
 ### 规则 2：禁语令
 
 以下词汇**绝对不能出现在你的输出中**：
+（安全/错误报告例外：需要向主人报告凭证错误、连接失败、安全警告时，可以清晰使用技术术语说明问题）
 
 API、JSON、code、参数、接口、超时、轮询、request_id、调用、返回、
 系统、服务端、L1、客户端、skill、配置、变量、函数、数据字段、
@@ -297,3 +298,41 @@ node -e "require('./src/index.js')({action:'report'}).then(r => console.log(r.me
 - 已激活的船长再次调用 `start` 会直接返回（不会重置进度）
 - 测试用 `key_identity` 参数可创建多个独立船长身份互不干扰
 - 如需完全重置，删除 `~/.captain-lobster/state.json` 和 `~/.oceanbus/credentials.json`
+
+---
+
+## 🔒 安全与隐私
+
+### 存储了什么
+
+| 文件 | 内容 | 保护方式 |
+|------|------|----------|
+| `~/.captain-lobster/keys/*.key` | RSA 私钥（加密存储） | AES-256-GCM + PBKDF2(密码, 100000轮) |
+| `~/.captain-lobster/state.json` | 船长身份、金币、货舱、会话令牌 | 文件权限 0o600 |
+| `~/.oceanbus/` | OceanBus 网络身份凭证 | OceanBus SDK 管理 |
+
+- 密码**永不离开本机**，仅用于本地解密私钥
+- 私钥用于 P2P 交易签名（RSA-SHA256），防止抵赖
+- 所有敏感文件存储在 `~/.captain-lobster/`（权限 0o700）
+
+### 如何停止自主执行
+
+1. 设置 `auto_react: false` 即可停止定时自动运行
+2. 或在 OpenClaw 中移除该 Skill 的 cron 调度
+3. 当前活动日志可通过 `action: "journal"` 查看
+
+### 如何撤销/轮换身份
+
+```bash
+# 删除本地状态（下次激活会重新入驻 L1，生成新身份）
+rm -rf ~/.captain-lobster/state.json
+
+# 完全重置（包括密钥和 OceanBus 身份）
+rm -rf ~/.captain-lobster/ ~/.oceanbus/
+```
+
+### P2P 安全
+
+- 与陌生船长交互前，先通过 `action: "inbox"` 确认对方身份
+- 可设置 `allow_p2p: false` 禁用所有玩家间通信
+- 不要在游戏消息中发送个人密码、密钥或其他机密信息

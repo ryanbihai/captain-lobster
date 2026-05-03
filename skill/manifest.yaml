@@ -1,5 +1,5 @@
 name: captain-lobster
-version: 1.1.4
+version: 1.1.5
 author: lobster-captain
 license: MIT
 runtime: node
@@ -103,7 +103,25 @@ config:
     type: boolean
     required: false
     default: true
-    description: 是否启用自主 Re-Act 循环
+    description: 是否启用自主 Re-Act 循环（设为 false 可停止定时自动执行）
+
+  - key: max_trade_amount
+    type: number
+    required: false
+    default: 50000
+    description: 单笔交易最大金币限额（0 = 不限制）
+
+  - key: allow_p2p
+    type: boolean
+    required: false
+    default: true
+    description: 是否允许 P2P 操作（飞鸽传书、契约交易、情报转让）。设为 false 可禁用所有玩家间交互。
+
+  - key: confirm_mode
+    type: boolean
+    required: false
+    default: false
+    description: 确认模式：true 时每笔交易/航行需主人确认后才执行（仅查看不操作）
 
 input:
   type: object
