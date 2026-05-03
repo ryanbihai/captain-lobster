@@ -32,7 +32,7 @@ function _machineKey() {
 const SENSITIVE_FIELDS = ['captainToken', 'oceanBusApiKey']
 
 function _encryptField(plaintext) {
-  if (!plaintext) return null
+  if (!plaintext || typeof plaintext !== 'string') return null
   const key = _machineKey()
   const iv = crypto.randomBytes(12)
   const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)

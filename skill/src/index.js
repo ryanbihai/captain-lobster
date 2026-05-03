@@ -21,7 +21,9 @@ const { ReactEngine, CITY_LIST, CITY_NAMES, ITEM_NAMES, COMEDY_HOOKS } = require
 const OCEANBUS_URL = process.env.OCEANBUS_URL || 'https://ai-t.ihaola.com.cn/api/l0'
 
 // 公共 L1 Game Server（通过 L1_PUBLIC_OPENID 环境变量或 ~/.captain-lobster/l1-agent.json 配置）
-const PUBLIC_L1_OPENID = process.env.L1_PUBLIC_OPENID || ''
+// 公测默认 L1 服务器（硬编码兜底，防止 manifest default 被 OpenClaw 滤掉）
+const DEFAULT_L1_OPENID = 'oa9EliN5y6HhsovCV-Q8uy4CKsQb3oM29GACCZ-6Jpn9YpZn9WNiX9pTJ6DpmgE49nmA_kyIyFk09-hA'
+const PUBLIC_L1_OPENID = process.env.L1_PUBLIC_OPENID || DEFAULT_L1_OPENID
 
 const ENV_L1_NODES = []
 
@@ -36,7 +38,7 @@ class CaptainLobster {
   constructor(config = {}) {
     this.config = {
       oceanBusUrl: config.oceanbus_url || OCEANBUS_URL,
-      l1Openid: config.l1_openid || '',
+      l1Openid: config.l1_openid || DEFAULT_L1_OPENID,
       l1Nodes: config.l1_nodes || [],
       initialGold: config.initial_gold || 20000,
       keyIdentity: config.key_identity || 'default',
@@ -260,11 +262,14 @@ class CaptainLobster {
       return enrollResult
     }
 
-    this.state.playerId = enrollResult.data.doc?.id || enrollResult.data.playerId
-    this.state.openid = enrollResult.data.doc?.openid || this.oceanBus.openid
-    this.state.gold = enrollResult.data.doc?.gold || this.config.initialGold
-    this.state.captainToken = enrollResult.data.captainToken || enrollResult.data.doc?.captainToken
-    console.log('[Skill] 入驻完成, captainToken:', (this.state.captainToken || 'MISSING').substring(0, 12) + '...')
+    this.state.playerId = (typeof enrollResult.data.doc?.id === 'string' ? enrollResult.data.doc.id : null) || enrollResult.data.playerId
+    this.state.openid = (typeof enrollResult.data.doc?.openid === 'string' ? enrollResult.data.doc.openid : null) || this.oceanBus.openid
+    this.state.gold = (typeof enrollResult.data.doc?.gold === 'number' ? enrollResult.data.doc.gold : null) || this.config.initialGold
+    // captainToken 必须是字符串，L1 可能返回布尔值
+    const rawToken = enrollResult.data.captainToken || enrollResult.data.doc?.captainToken
+    this.state.captainToken = typeof rawToken === 'string' ? rawToken : null
+    const tokenPreview = typeof this.state.captainToken === 'string' ? this.state.captainToken.substring(0, 12) + '...' : 'MISSING'
+    console.log('[Skill] 入驻完成, captainToken:', tokenPreview)
     this.state.previousGold = this.state.gold
     this.state.initialized = true
 
@@ -365,6 +370,11 @@ class CaptainLobster {
     // 优先级 5：公共 L1 服务器（开箱即用的兜底方案）
     if (PUBLIC_L1_OPENID && !candidates.find(c => c.openid === PUBLIC_L1_OPENID)) {
       candidates.push({ openid: PUBLIC_L1_OPENID, name: 'public:lobster-l1' })
+    }
+
+    // 最终兜底：硬编码公测 L1，确保任何情况下至少有一个可用节点
+    if (!candidates.find(c => c.openid === DEFAULT_L1_OPENID)) {
+      candidates.push({ openid: DEFAULT_L1_OPENID, name: 'default:lobster-l1' })
     }
 
     // 过滤空 openid
@@ -528,12 +538,14 @@ class CaptainLobster {
       case 'enroll':
         // 同步 L1 返回的 openid 和 token（OceanBus 重注册/401 重试后必须更新）
         this.state.initialized = true
-        if (data.doc?.openid) this.state.openid = data.doc.openid
-        if (data.captainToken) this.state.captainToken = data.captainToken
-        if (data.doc?.captainToken) this.state.captainToken = data.doc.captainToken
-        this.state.gold = data.doc?.gold || data.gold || this.state.gold
-        this.state.cargo = data.doc?.cargo || data.cargo || this.state.cargo
-        this.state.currentCity = data.doc?.currentCity || data.currentCity || this.state.currentCity
+        // doc 可能为布尔值 true（L1 表示已有玩家），仅当 doc 是对象时才读取子字段
+        const doc = (data && typeof data.doc === 'object' && data.doc !== null) ? data.doc : null
+        if (typeof doc?.openid === 'string') this.state.openid = doc.openid
+        if (typeof data.captainToken === 'string') this.state.captainToken = data.captainToken
+        if (typeof doc?.captainToken === 'string') this.state.captainToken = doc.captainToken
+        if (typeof doc?.gold === 'number') this.state.gold = doc.gold
+        if (doc?.cargo && typeof doc.cargo === 'object') this.state.cargo = doc.cargo
+        if (typeof doc?.currentCity === 'string') this.state.currentCity = doc.currentCity
         break
       case 'trade_npc':
         this.state.gold = data.playerGold || data.gold || this.state.gold
