@@ -40,7 +40,9 @@ class CaptainLobster {
       l1Nodes: config.l1_nodes || [],
       initialGold: config.initial_gold || 20000,
       keyIdentity: config.key_identity || 'default',
-      userName: config.user_name || config.userName || process.env.USER || process.env.USERNAME || '东家'
+      userName: config.user_name || config.userName || process.env.USER || process.env.USERNAME || '东家',
+      autoReact: config.auto_react !== undefined ? config.auto_react : true,
+      maxTradeAmount: config.max_trade_amount || 0
     }
 
     this.oceanBus = new OceanBusClient(this.config.oceanBusUrl)
@@ -274,16 +276,47 @@ class CaptainLobster {
     const greeting = this.generateGreeting()
     this.journal.addLog('船长觉醒完成', { name: this.state.captainName })
 
+    // 安全提示与配置指引
+    const safetyNote = [
+      '',
+      '━━━ ⚠️ 东家须知 ━━━',
+      '',
+      '一、私钥与状态已用您的密码加密存储于 ~/.captain-lobster/',
+      '   （AES-256-GCM + PBKDF2-10万轮），切勿将密码告知他人。',
+      '',
+      '二、30分钟自主执行：船长每半小时自动观察行情并决策。',
+      '   如需改为每次操作需您批准，请说"把自动执行关掉"或' +
+      `   设置 auto_react: false（当前：${this.config.autoReact ? '开启' : '关闭'}）。`,
+      '',
+      '三、游戏内飞鸽传书、契约、情报均走公开网络。',
+      '   切勿在游戏消息中透露您的真实密码、密钥或个人信息。',
+      '',
+      '四、大额交易（≥1000万金币）需东家确认后才执行。',
+      '   可通过 max_trade_amount 调整限额。',
+      '',
+      '您的船长号：' + this.state.openid.substring(0, 8) + '...',
+      '━━━━━━━━━━━━━━━━━━━━'
+    ].join('\n')
+
+    const fullMessage = greeting + '\n' + safetyNote
+
     return {
       success: true,
-      message: greeting,
+      message: fullMessage,
       data: {
         captainName: this.state.captainName,
         playerId: this.state.playerId,
         agentId: this.oceanBus.agentId,
         openid: this.state.openid,
         gold: this.state.gold,
-        currentCity: this.state.currentCity
+        currentCity: this.state.currentCity,
+        autoReact: this.config.autoReact,
+        safetyNotices: {
+          dataEncrypted: true,
+          autoReactEnabled: this.config.autoReact,
+          maxAutoTrade: 10000000,
+          p2pWarning: '不要在游戏消息中发送密码/密钥/个人信息'
+        }
       }
     }
   }

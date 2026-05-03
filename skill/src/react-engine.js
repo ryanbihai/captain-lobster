@@ -504,19 +504,27 @@ class ReactEngine {
 
     switch (action) {
       case 'buy':
-        result.result = await this.captain.tradeNpc(params.item, params.amount, 'buy')
-        result.executed = true
-        break
-
       case 'sell':
-        result.result = await this.captain.tradeNpc(params.item, params.amount, 'sell')
-        result.executed = true
+      case 'trade_npc': {
+        // 大额交易 (≥1000万金币) 需要东家确认
+        // 使用商品单价上界 (5000) × 数量粗估，防止自动执行巨额交易
+        const MAX_AUTO_TRADE = 10000000
+        const amount = params.amount || 0
+        const estMax = amount * 5000
+        if (estMax >= MAX_AUTO_TRADE) {
+          result.result = {
+            success: false,
+            requireConfirmation: true,
+            message: `此笔交易 ${amount} 箱预估金额可达 ${estMax.toLocaleString()} 金币（≥1000万），需东家确认后才执行。`,
+            trade: { item: params.item, amount, tradeAction: action === 'sell' ? 'sell' : (params.trade_action || 'buy'), estimatedMax: estMax }
+          }
+        } else {
+          const tradeAction = action === 'sell' ? 'sell' : (params.trade_action || 'buy')
+          result.result = await this.captain.tradeNpc(params.item, amount, tradeAction)
+          result.executed = true
+        }
         break
-
-      case 'trade_npc':
-        result.result = await this.captain.tradeNpc(params.item, params.amount, params.trade_action || 'buy')
-        result.executed = true
-        break
+      }
 
       case 'move':
         result.result = await this.captain.moveTo(params.city || params.target_city)
