@@ -180,6 +180,17 @@ class OceanBusClient {
     }
   }
 
+  // ── 配额 ──
+
+  getQuotaUsage() {
+    if (!this.ob || !this.ob.quota) return null
+    try {
+      return this.ob.quota.getDailyUsage()
+    } catch (e) {
+      return null
+    }
+  }
+
   // ── 消息解析 ──
 
   parseMessages(messages, type = null) {

@@ -219,6 +219,11 @@ class CaptainLobster {
       this.state.oceanBusOpenid = this.oceanBus.openid
     } else {
       console.log('[Skill] 复用已有 OceanBus 身份')
+      // 主动将 SDK 恢复的身份写入 state.json 冗余备份（旧版 state 无此字段时补齐）
+      this.state.oceanBusApiKey = this.state.oceanBusApiKey || this.oceanBus.apiKey
+      this.state.oceanBusAgentId = this.state.oceanBusAgentId || this.oceanBus.agentId
+      this.state.oceanBusOpenid = this.state.oceanBusOpenid || this.oceanBus.openid
+      this.oceanBus.setBackupIdentity(this.oceanBus.agentId, this.oceanBus.openid, this.oceanBus.apiKey)
     }
 
     // —— L1 节点自动发现 ——
@@ -469,7 +474,18 @@ class CaptainLobster {
       console.error('[Skill] 令牌恢复未成功(token未变)，放弃重试')
     }
 
-    return { success: false, message: reply.data?.msg || reply.msg || 'L1 请求失败', code: reply.code }
+    const errorMsg = reply.data?.msg || reply.msg || 'L1 请求失败'
+    if (/quota/i.test(errorMsg)) {
+      const usage = this.oceanBus.getQuotaUsage()
+      const limitStr = usage ? `（日限 ${usage.limit} 封）` : ''
+      console.log('[Skill] OceanBus 日配额已用完' + limitStr)
+      return {
+        success: false,
+        message: `今日飞鸽传书已达上限${limitStr}。海上的规矩——明日日出时分，信鸽自会归巢。请东家明早再来。`,
+        code: reply.code
+      }
+    }
+    return { success: false, message: errorMsg, code: reply.code }
   }
 
   _updateStateFromAction(action, data) {
@@ -973,7 +989,18 @@ ${p.quirk || ''}`
 // ─── OpenClaw Skill Handler ──────────────────────
 
 module.exports = async function handler(input, context) {
-  const { action, params, password } = input || {}
+  let { action, params, password } = input || {}
+
+  // 兼容扁平参数：{action:'buy', item:'tea', amount:50} → {action:'buy', params:{item:'tea', amount:50}}
+  if (!params && input) {
+    const metaKeys = new Set(['action', 'params', 'password'])
+    const extraKeys = Object.keys(input).filter(k => !metaKeys.has(k))
+    if (extraKeys.length > 0) {
+      params = {}
+      for (const k of extraKeys) params[k] = input[k]
+    }
+  }
+
   const config = context?.config || {}
   const captain = new CaptainLobster(config)
 

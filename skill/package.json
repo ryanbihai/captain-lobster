@@ -15,7 +15,7 @@
     "simulation"
   ],
   "author": "lobster-captain",
-  "license": "MIT",
+  "license": "MIT-0",
   "dependencies": {
     "oceanbus": "^0.1.7"
   }
