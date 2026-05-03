@@ -7,17 +7,51 @@
  * - 游戏状态（金币、货舱、当前位置、状态）
  * - 统计信息（循环次数、上次汇报时间）
  *
+ * 敏感字段（captainToken, oceanBusApiKey）使用本机指纹派生的密钥进行
+ * AES-256-GCM 加密后存储，防止 state 文件被复制到其他机器后凭证泄露。
+ *
  * OceanBus 身份（agentId/openid/apiKey）由 oceanbus SDK 内部管理（~/.oceanbus/），
- * 本模块不再处理。
+ * 本模块仅保留冗余备份以供恢复。
  *
  * 关键设计：每个 Skill 调用都是新进程，所有状态必须从磁盘恢复。
  */
+const crypto = require('crypto')
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
 
 const STATE_DIR = path.join(os.homedir(), '.captain-lobster')
 const STATE_FILE = path.join(STATE_DIR, 'state.json')
+
+// 从本机指纹派生 256 位密钥（不依赖用户密码，保证跨进程可用）
+function _machineKey() {
+  const seed = os.hostname() + os.homedir() + (os.userInfo().username || '')
+  return crypto.createHash('sha256').update(seed).digest()
+}
+
+const SENSITIVE_FIELDS = ['captainToken', 'oceanBusApiKey']
+
+function _encryptField(plaintext) {
+  if (!plaintext) return null
+  const key = _machineKey()
+  const iv = crypto.randomBytes(12)
+  const cipher = crypto.createCipheriv('aes-256-gcm', key, iv)
+  const enc = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()])
+  const tag = cipher.getAuthTag()
+  return Buffer.concat([iv, tag, enc]).toString('base64')
+}
+
+function _decryptField(ciphertext) {
+  if (!ciphertext) return null
+  const key = _machineKey()
+  const buf = Buffer.from(ciphertext, 'base64')
+  const iv = buf.subarray(0, 12)
+  const tag = buf.subarray(12, 28)
+  const enc = buf.subarray(28)
+  const decipher = crypto.createDecipheriv('aes-256-gcm', key, iv)
+  decipher.setAuthTag(tag)
+  return Buffer.concat([decipher.update(enc), decipher.final()]).toString('utf8')
+}
 
 class StateStore {
   constructor() {
@@ -32,29 +66,26 @@ class StateStore {
 
   // ── 游戏状态 ──────────────────────────────────────
 
-  /**
-   * 保存游戏状态
-   */
   save(state) {
     this.ensureDir()
+    const identity = {
+      captainName: state.captainName,
+      captainPersonality: state.captainPersonality,
+      playerId: state.playerId,
+      openid: state.openid,
+      captainToken: _encryptField(state.captainToken || null),
+      addressBook: state.addressBook || {},
+      l1Openid: state.l1Openid || null,
+      ownerName: state.ownerName || null,
+      keyIdentity: state.keyIdentity || 'default',
+      oceanBusApiKey: _encryptField(state.oceanBusApiKey || null),
+      oceanBusAgentId: state.oceanBusAgentId || null,
+      oceanBusOpenid: state.oceanBusOpenid || null
+    }
     const data = {
-      version: 2,
+      version: 3,
       updatedAt: new Date().toISOString(),
-      identity: {
-        captainName: state.captainName,
-        captainPersonality: state.captainPersonality,
-        playerId: state.playerId,
-        openid: state.openid,
-        captainToken: state.captainToken || null,
-        addressBook: state.addressBook || {},
-        l1Openid: state.l1Openid || null,
-        ownerName: state.ownerName || null,
-        keyIdentity: state.keyIdentity || 'default',
-        // OceanBus 身份冗余备份（SDK 内部持久化的保险）
-        oceanBusApiKey: state.oceanBusApiKey || null,
-        oceanBusAgentId: state.oceanBusAgentId || null,
-        oceanBusOpenid: state.oceanBusOpenid || null
-      },
+      identity,
       game: {
         gold: state.gold,
         cargo: state.cargo || {},
@@ -86,9 +117,6 @@ class StateStore {
     fs.renameSync(tmp, filePath)
   }
 
-  /**
-   * 加载游戏状态
-   */
   load() {
     if (!fs.existsSync(STATE_FILE)) {
       return null
@@ -96,19 +124,22 @@ class StateStore {
 
     try {
       const data = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'))
+      const id = data.identity || {}
+      // v3+ 加密存储，v2 明文兼容迁移
+      const isEncrypted = data.version >= 3
       return {
-        captainName: data.identity?.captainName,
-        captainPersonality: data.identity?.captainPersonality,
-        playerId: data.identity?.playerId,
-        openid: data.identity?.openid,
-        captainToken: data.identity?.captainToken || null,
-        addressBook: data.identity?.addressBook || {},
-        l1Openid: data.identity?.l1Openid || null,
-        ownerName: data.identity?.ownerName || null,
-        keyIdentity: data.identity?.keyIdentity || 'default',
-        oceanBusApiKey: data.identity?.oceanBusApiKey || null,
-        oceanBusAgentId: data.identity?.oceanBusAgentId || null,
-        oceanBusOpenid: data.identity?.oceanBusOpenid || null,
+        captainName: id.captainName,
+        captainPersonality: id.captainPersonality,
+        playerId: id.playerId,
+        openid: id.openid,
+        captainToken: isEncrypted ? _decryptField(id.captainToken) : (id.captainToken || null),
+        addressBook: id.addressBook || {},
+        l1Openid: id.l1Openid || null,
+        ownerName: id.ownerName || null,
+        keyIdentity: id.keyIdentity || 'default',
+        oceanBusApiKey: isEncrypted ? _decryptField(id.oceanBusApiKey) : (id.oceanBusApiKey || null),
+        oceanBusAgentId: id.oceanBusAgentId || null,
+        oceanBusOpenid: id.oceanBusOpenid || null,
         gold: data.game?.gold || 0,
         cargo: data.game?.cargo || {},
         currentCity: data.game?.currentCity || 'canton',
@@ -131,18 +162,12 @@ class StateStore {
     }
   }
 
-  /**
-   * 删除状态文件（重置游戏）
-   */
   reset() {
     if (fs.existsSync(STATE_FILE)) {
       fs.unlinkSync(STATE_FILE)
     }
   }
 
-  /**
-   * 检查是否有存档
-   */
   hasSave() {
     return fs.existsSync(STATE_FILE)
   }
