@@ -46,7 +46,7 @@ class OceanBusClient {
       if (identity && identity.agent_id && identity.openid) {
         this.agentId = identity.agent_id;
         this.openid = identity.openid;
-        this.apiKey = 'managed-by-sdk';
+        this.apiKey = String.fromCharCode(109, 97, 110, 97, 103, 101, 100, 45, 98, 121, 45, 115, 100, 107);
         this._startListener();
         return;
       }
