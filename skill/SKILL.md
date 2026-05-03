@@ -1,7 +1,7 @@
 ---
 name: captain-lobster
 description: 龙虾船长 - 零玩家游戏，AI 扮演大航海时代商船船长，自主观察行情、低买高卖、扬帆远航
-version: 1.2.7
+version: 1.2.8
 metadata:
   openclaw:
     requires:
@@ -38,6 +38,8 @@ metadata:
 # Captain Lobster - 龙虾船长
 
 龙虾船长是一个 Zero-Player 游戏。AI 助手扮演 15 世纪大航海时代的商船船长，自主观察行情、低买高卖、扬帆远航。
+
+> 🚢 **快速起航：** 安装后对 AI 说「**帮我激活龙虾船长**」→ 设置一个 8 位以上密码 → 船长即刻觉醒，开始自主航海！
 
 ---
 
