@@ -16,7 +16,7 @@ const KeyStore = require('./keystore')
 const CaptainJournal = require('./journal')
 const OceanBusClient = require('./oceanbus')
 const { StateStore } = require('./state-store')
-const { ReactEngine, CITY_LIST, CITY_NAMES, ITEM_NAMES, COMEDY_HOOKS } = require('./react-engine')
+const { ReactEngine, CITY_LIST, CITY_NAMES, ITEM_NAMES, ITEM_LIST, COMEDY_HOOKS } = require('./react-engine')
 
 const OCEANBUS_URL = process.env.OCEANBUS_URL || 'https://ai-t.ihaola.com.cn/api/l0'
 
@@ -767,6 +767,37 @@ ${p.quirk || ''}`
       }
     }
 
+    // 确定性 fallback：LLM 未产出决策时，自动打底进货一次
+    if (!llmResult && observations.city?.prices && this.state.status === 'docked') {
+      try {
+        const prices = observations.city.prices
+        const currentCargo = Object.values(this.state.cargo || {}).reduce((s, v) => s + v, 0)
+        const remainingSlots = 100 - currentCargo
+        let bestItem = null
+        let bestPrice = Infinity
+        for (const item of ITEM_LIST) {
+          const p = prices[item]
+          const buyPrice = p?.buy || (p?.market ? Math.round(p.market * 1.05) : 0)
+          if (buyPrice > 0 && buyPrice < bestPrice && buyPrice <= this.state.gold) {
+            bestItem = item
+            bestPrice = buyPrice
+          }
+        }
+        if (bestItem && remainingSlots > 0) {
+          const amount = Math.min(10, remainingSlots, Math.floor(this.state.gold / bestPrice))
+          if (amount > 0) {
+            const actResult = await this.reactEngine.act('buy', { item: bestItem, amount })
+            const itemName = ITEM_NAMES[bestItem] || bestItem
+            llmResult = {
+              decision: { action: 'buy', reason: `自动进货 ${amount}箱${itemName}@${bestPrice}金币` },
+              executed: actResult.executed,
+              result: actResult.result
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
     return {
       success: true,
       message: llmResult
@@ -819,11 +850,13 @@ ${p.quirk || ''}`
     if (result.success) {
       const tradeLog = action === 'buy' ? '买入' : '卖出'
       const priceInfo = result.data?.unitPrice ? `@${result.data.unitPrice}金币` : ''
+      const itemName = ITEM_NAMES[item] || item
       this.journal.addLog(tradeLog, {
         货品: item, 数量: amount,
         价格: priceInfo,
         金币: this.state.gold, 位置: this.state.currentCity
       })
+      result.message = `成功${tradeLog} ${amount} 箱${itemName}${priceInfo ? `，单价 ${result.data.unitPrice} 金币` : ''}`
     }
     return result
   }
@@ -839,6 +872,10 @@ ${p.quirk || ''}`
       } else {
         this.journal.addLog('启航', { 目的港: targetCity, 航程: (result.data?.sailingTime || '?') + '分钟' })
       }
+      const cityName = CITY_NAMES[targetCity] || targetCity
+      const sailingTime = result.data?.sailingTime || result.data?.doc?.sailingTime
+      const eta = sailingTime ? `，预计 ${sailingTime} 分钟到达` : ''
+      result.message = `已启航前往 ${cityName}${eta}`
     }
     return result
   }
@@ -850,6 +887,10 @@ ${p.quirk || ''}`
       if (result.data?.settleResults && result.data.settleResults.length > 0) {
         this.journal.addLog('交割完成', { 合约数: result.data.settleResults.length })
       }
+      const cityName = CITY_NAMES[this.state.currentCity] || this.state.currentCity
+      const settleCount = result.data?.settleResults?.length || 0
+      const settleNote = settleCount > 0 ? `，交割 ${settleCount} 笔合约` : ''
+      result.message = `已抵达 ${cityName}${settleNote}`
     }
     return result
   }
