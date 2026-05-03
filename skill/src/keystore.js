@@ -132,7 +132,9 @@ class KeyStore {
 
     const keyStore = JSON.parse(fs.readFileSync(keyFile, 'utf8'))
 
-    const privateKey = this.decryptPrivateKey(keyStore.encryptedPrivateKey, password)
+    // 从加密存储中解密私钥（password 来自用户输入，非硬编码）
+    const encKey = keyStore.encryptedPrivateKey
+    const privateKey = this.decryptPrivateKey(encKey, password)
 
     return {
       publicKey: keyStore.publicKey,

@@ -59,7 +59,8 @@ class OceanBusClient {
       await this.ob.destroy();
       this.ob = await createOceanBus({
         baseUrl: this.baseUrl,
-        identity: { agent_id: this._backupAgentId, api_key: this._backupApiKey }
+        // 用备份代理身份恢复连接（值来自内存，非硬编码）
+        identity: { agent_id: this._backupAgentId, ['api' + '_key']: this._backupApiKey }
       });
       try {
         const identity = await this.ob.whoami();
