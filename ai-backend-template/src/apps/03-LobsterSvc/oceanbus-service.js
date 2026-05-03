@@ -267,7 +267,7 @@ class LobsterL1Service {
           status: p.status || 'docked',
           intent: p.intent || '',
           shipCapacity: p.shipCapacity || 100,
-          captainToken: p.captainToken || require('crypto').randomBytes(16).toString('hex'),
+          captainToken: p.captainToken || null,  // 不强造新 token，避免 skill 端 401 后重入驻
           sailingUntil: null
         }
       }
