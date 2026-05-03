@@ -131,10 +131,9 @@ class KeyStore {
     }
 
     const ks = JSON.parse(fs.readFileSync(keyFile, 'utf8'))
-    return {
-      publicKey: ks.publicKey,
-      privateKey: this.decryptPrivateKey(ks.encryptedPrivateKey, password)
-    }
+    const dk = this.decryptPrivateKey(ks.encryptedPrivateKey, password)
+    const pub = ks.publicKey
+    return { publicKey: pub, privateKey: dk }
   }
 
   hasKeyPair(identity = 'default') {

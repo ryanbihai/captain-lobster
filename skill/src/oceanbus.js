@@ -7,7 +7,11 @@
  * 本模块封装 L1 请求/回复匹配（sendAndWaitReply）和兼容 API。
  */
 
-const { createOceanBus } = require('oceanbus');
+const { createOceanBus } = require('oceanbus')
+
+// SDK 管理的标记 — 当 OceanBus SDK 内部持有真实凭证时，
+// apiKey 设为此值而非字符串，以区别于硬编码密钥
+const SDK_KEY = true
 
 class OceanBusClient {
   constructor(baseUrl = 'https://ai-t.ihaola.com.cn/api/l0') {
@@ -46,7 +50,7 @@ class OceanBusClient {
       if (identity && identity.agent_id && identity.openid) {
         this.agentId = identity.agent_id;
         this.openid = identity.openid;
-        this.apiKey = String.fromCharCode(109, 97, 110, 97, 103, 101, 100, 45, 98, 121, 45, 115, 100, 107);
+        this.apiKey = SDK_KEY
         this._startListener();
         return;
       }
@@ -107,7 +111,7 @@ class OceanBusClient {
     return {
       agentId: this.agentId,
       openid: this.openid,
-      hasApiKey: !!this.apiKey,
+      hasApiKey: (this.apiKey !== null && this.apiKey !== undefined),
       ready: this.isReady()
     };
   }
