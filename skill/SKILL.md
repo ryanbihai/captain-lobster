@@ -1,8 +1,7 @@
 ---
-name: captain-lobster
-title: Captain Lobster
+name: Captain Lobster
 description: 龙虾船长 - 零玩家游戏，AI 扮演大航海时代商船船长，自主观察行情、低买高卖、扬帆远航
-version: 1.2.16
+version: 1.2.17
 metadata:
   openclaw:
     requires:
