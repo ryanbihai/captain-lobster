@@ -1,5 +1,6 @@
 name: captain-lobster
-version: 1.2.14
+title: Captain Lobster
+version: 1.2.15
 author: lobster-captain
 license: MIT
 runtime: node
