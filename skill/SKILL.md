@@ -25,6 +25,7 @@ metadata:
         required: false
         description: 系统用户名（Windows），用于船长命名
     emoji: 🦞
+    skillKey: 龙虾船长
     os:
       - macos
       - linux

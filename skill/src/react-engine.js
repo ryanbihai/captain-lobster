@@ -374,12 +374,13 @@ class ReactEngine {
         const story = (intel.story || '暂无详情').substring(0, 60)
         prompt += `| \`${intel.id.substring(0, 8)}\` | ${typeLabel} | ${toName} | ${intel.reward}金 | ${remaining} | ${story} |\n`
       }
-      prompt += '\n**情报策略**：酒馆情报是航海经商的重要补充——花小钱买方向，顺路就赚。\n'
+      prompt += '\n**情报策略**：酒馆情报是先掏钱买、后送货赚的买卖。\n'
+      prompt += '- 买消息要花 400-800 金币（当场扣），送到目的地才领赏金\n'
       prompt += '- 运货(cargo)：赏金3000-5000，最稳当\n'
       prompt += '- 送人(passenger)：赏金4000-6000，利润最高\n'
       prompt += '- 折扣(discount)：赏金2000-3500，抵港还附赠当地特产2-5箱\n'
-      prompt += '- 费用仅400-800金币，顺路捎带即赚数倍。三个时辰内有效，限持三份。\n'
-      prompt += '- 建议：每到一港先去酒馆「探风」——万一有去你下一站的情报就是白捡的银子。\n\n'
+      prompt += '- 三个时辰内有效，限持三份。**不顺路的不要买**——买了送不到就是白扔钱\n'
+      prompt += '- 建议：先决定了下一站去哪，再进酒馆探风。去同一个方向才买\n\n'
     }
 
     // ── 可用工具（Tools Calling 格式）──

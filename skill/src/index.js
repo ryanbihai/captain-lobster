@@ -537,7 +537,7 @@ class CaptainLobster {
         this.state.intent = data.intent || ''
         break
       case 'tavern_buy':
-        this.state.gold = data.playerGold || this.state.gold
+        this.state.gold = data.playerGold || data.gold || this.state.gold
         if (data.intel) {
           const existingIds = new Set(this.state.intels.map(i => i.id))
           if (!existingIds.has(data.intel.id)) {
@@ -1110,14 +1110,8 @@ module.exports = async function handler(input, context) {
     }
 
     // ── 酒馆情报 ──
-    case 'tavern_buy': {
-      const tbResult = await captain.tavernBuyIntel()
-      if (tbResult.success && tbResult.data?.intel) {
-        const llmFn = context.llm || context.askLLM
-        captain.generateIntelStory(tbResult.data.intel, llmFn).catch(() => {})
-      }
-      return tbResult
-    }
+    case 'tavern_buy':
+      return await captain.tavernBuyIntel()
 
     case 'intel_list':
       return await captain.listIntels()
