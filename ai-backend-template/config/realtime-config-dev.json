@@ -1,0 +1,10 @@
+{
+  "debug": {
+    "default": true
+  },
+  "task": {
+    "00-CoreSvc": {
+      "cron": "0 0 * * *"
+    }
+  }
+}

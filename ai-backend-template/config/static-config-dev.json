@@ -1,0 +1,21 @@
+{
+  "mongodb": {
+    "uri": "mongodb://server3:17027/aisvc?readPreference=nearest"
+  },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6379,
+    "password": "Haola@2088!",
+    "stringNumbers": false,
+    "enableReadyCheck": true,
+    "dropBufferSupport": true,
+    "db": 0,
+    "showFriendlyErrorStack": true
+  },
+  "bullmq": {
+    "defaultJobOptions": {
+      "attempts": 3,
+      "removeOnComplete": true
+    }
+  }
+}

@@ -1,0 +1,120 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "AI Backend Template APIs",
+    "version": "1.0.0",
+    "description": "基于 AI 后端项目开发规范生成的 Node.js 项目接口大纲。\n可以直接导入 Apifox 或者 Postman 使用。"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:17019",
+      "description": "本地开发/测试环境"
+    }
+  ],
+  "tags": [
+    {
+      "name": "用户管理微服务 (01-UserSvc)",
+      "description": "提供对用户主体的增删改查基本单元"
+    },
+    {
+      "name": "核心基础微服务 (00-CoreSvc)",
+      "description": "基础系统的内部调用示例"
+    }
+  ],
+  "paths": {
+    "/api/users/list": {
+      "get": {
+        "summary": "获取用户列表",
+        "tags": ["用户管理微服务 (01-UserSvc)"],
+        "parameters": [
+          { "name": "keyword", "in": "query", "schema": { "type": "string" }, "description": "通过姓名关键字模糊搜索" },
+          { "name": "skip", "in": "query", "schema": { "type": "integer", "default": 0 }, "description": "分页：跳过的数量" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 }, "description": "分页：每页最大拉取数" }
+        ],
+        "responses": {
+          "200": { "description": "返回带有 total 总数与 docs 实体列表的包裹" }
+        }
+      }
+    },
+    "/api/users/create": {
+      "post": {
+        "summary": "创建新用户",
+        "tags": ["用户管理微服务 (01-UserSvc)"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "张三" },
+                  "mobile": { "type": "string", "example": "13800138000" },
+                  "gender": { "type": "string", "enum": ["male", "female", ""] }
+                },
+                "required": ["name"]
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "返回 code:0, 并且 data.doc 包含用户结构集" } }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "summary": "获取指定用户的单条详情",
+        "tags": ["用户管理微服务 (01-UserSvc)"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "通过UUID获取" }
+        ],
+        "responses": { "200": { "description": "成功则返回包含脱敏数据的用户模型 doc" } }
+      },
+      "patch": {
+        "summary": "更新指定用户信息 (修改)",
+        "tags": ["用户管理微服务 (01-UserSvc)"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "mobile": { "type": "string" },
+                  "avatar": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "成功返回更新后的用户快照" } }
+      },
+      "delete": {
+        "summary": "移除指定用户（软删除）",
+        "tags": ["用户管理微服务 (01-UserSvc)"],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": { "200": { "description": "返回 { code:0 } 为软删成功，或者 code:4 用户不存在" } }
+      }
+    },
+    "/api/core/user/list": {
+      "get": {
+        "summary": "获取测试用户列表",
+        "tags": ["核心基础微服务 (00-CoreSvc)"],
+        "responses": {
+          "200": { "description": "获得结构列表" }
+        }
+      }
+    },
+    "/api/core/user/create": {
+      "post": {
+        "summary": "创建测试用户",
+        "tags": ["核心基础微服务 (00-CoreSvc)"],
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "type": "object", "properties": { "name": { "type": "string" } }, "required": ["name"] } } } },
+        "responses": { "200": { "description": "成功返回" } }
+      }
+    }
+  }
+}

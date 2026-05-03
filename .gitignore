@@ -29,7 +29,10 @@ Thumbs.db
 *.tmp
 
 # 内部开发 (不入库)
-ai-backend-template/
+.agent/
+.trae/
+.claude/
+.history/
 skills/
 .agent/
 .trae/

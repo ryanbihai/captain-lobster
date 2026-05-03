@@ -1,0 +1,15 @@
+{
+  "mongodb": {
+    "uri": "mongodb://localhost:27017/ai-backend"
+  },
+  "redis": {
+    "host": "127.0.0.1",
+    "port": 6380
+  },
+  "bullmq": {
+    "defaultJobOptions": {
+      "attempts": 3,
+      "removeOnComplete": true
+    }
+  }
+}
