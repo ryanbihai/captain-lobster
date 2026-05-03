@@ -629,8 +629,6 @@ class CaptainLobster {
 
   generateCaptainIdentity() {
     const userName = this.config.userName || '东家'
-    // 船名: "毕姥爷的龙虾号"
-    this.state.captainName = `${userName}的龙虾号`
 
     const personalities = [
       { trait: '乐观激进', style: '满嘴跑火车型', quirk: '开口就是"要发财了"' },
@@ -639,8 +637,60 @@ class CaptainLobster {
       { trait: '浪漫冒险', style: '故事大王型', quirk: '总讲年轻时的航海冒险故事' }
     ]
 
+    // 默认随机人格
     const persIdx = Math.floor(Math.random() * personalities.length)
-    this.state.captainPersonality = personalities[persIdx]
+    const defaultPersonality = personalities[persIdx]
+
+    // ── MY-CAPTAIN.md 自动部署 + 读取 ──
+    const templatePath = path.join(__dirname, '..', 'MY-CAPTAIN.md')
+    const userCaptainPath = path.join(os.homedir(), '.captain-lobster', 'MY-CAPTAIN.md')
+
+    try {
+      if (!fs.existsSync(userCaptainPath) && fs.existsSync(templatePath)) {
+        fs.copyFileSync(templatePath, userCaptainPath)
+      }
+    } catch (_) {}
+
+    let customName = ''
+    let customTrait = ''
+    let customQuirk = ''
+
+    if (fs.existsSync(userCaptainPath)) {
+      try {
+        const content = fs.readFileSync(userCaptainPath, 'utf8')
+        const nameMatch = content.match(/船长名字[：:]\s*(.+)/)
+        if (nameMatch && nameMatch[1].trim()) {
+          customName = nameMatch[1].trim()
+        }
+        const traitMatch = content.match(/性格[：:]\s*(.+)/)
+        if (traitMatch && traitMatch[1].trim()) {
+          customTrait = traitMatch[1].trim()
+        }
+        const quirkMatch = content.match(/口头禅[：:]\s*(.+)/)
+        if (quirkMatch && quirkMatch[1].trim()) {
+          customQuirk = quirkMatch[1].trim()
+        }
+      } catch (_) {}
+    }
+
+    // 应用自定义值，未设置的用随机值
+    if (customName) {
+      this.state.captainName = customName
+    } else {
+      this.state.captainName = `${userName}的龙虾号`
+    }
+
+    if (customTrait) {
+      const matched = personalities.find(p => p.trait === customTrait)
+      this.state.captainPersonality = matched || { ...defaultPersonality, trait: customTrait }
+    } else {
+      this.state.captainPersonality = defaultPersonality
+    }
+
+    if (customQuirk) {
+      this.state.captainPersonality.quirk = customQuirk
+    }
+
     this.state.ownerName = userName
   }
 
@@ -683,6 +733,52 @@ ${name}向您报到！
 库银：${gold} 金币
 
 ${p.quirk || ''}`
+  }
+
+  // ─── Re-Act 循环 ──────────────────────────────
+
+  async runReactCycle(context) {
+    await this.syncStateFromL1()
+
+    this.state.reactCycleCount++
+    this.state.lastReactTime = Date.now()
+    this._persistState()
+
+    const cycleResult = await this.reactEngine.runCycle()
+    const { observations, prompt } = cycleResult
+
+    let llmResult = null
+    const hasLLM = typeof context?.llm === 'function' || typeof context?.askLLM === 'function'
+    if (hasLLM) {
+      try {
+        const llmFn = context.llm || context.askLLM
+        const llmResponse = await llmFn(prompt)
+        const decision = ReactEngine.parseDecision(llmResponse)
+        if (decision && decision.action) {
+          const actResult = await this.reactEngine.act(decision.action, decision.params || {})
+          llmResult = {
+            decision: { action: decision.action, reason: decision.reason },
+            executed: actResult.executed,
+            result: actResult.result
+          }
+        }
+      } catch (e) {
+        observations.errors.push({ source: 'llm', message: e.message })
+      }
+    }
+
+    return {
+      success: true,
+      message: llmResult
+        ? `第 ${cycleResult.cycle} 轮：${llmResult.decision.action} — ${llmResult.decision.reason || ''}`
+        : cycleResult.message,
+      data: {
+        cycle: cycleResult.cycle,
+        observations,
+        prompt,
+        llmResult
+      }
+    }
   }
 
   // ─── 用户操作 ───────────────────────────────────
@@ -1074,6 +1170,7 @@ module.exports = async function handler(input, context) {
 
       // 尝试用 LLM 生成个性化开场白
       const hasLLM = typeof context?.llm === 'function' || typeof context?.askLLM === 'function'
+      let greeting = initResult.message || ''
       if (hasLLM) {
         try {
           const p = captain.state.captainPersonality || {}
@@ -1096,13 +1193,27 @@ module.exports = async function handler(input, context) {
 记住：你就是活生生的船长，不是AI，不是程序。你就是十五世纪的一个航海人。`
           const llmGreeting = await llmFn(greetingPrompt)
           if (llmGreeting && llmGreeting.length > 20) {
-            return { ...initResult, message: llmGreeting.trim() }
+            greeting = llmGreeting.trim()
           }
         } catch (e) {
           // LLM 失败 → 用固定模板
         }
       }
-      return initResult
+
+      // 入驻完成后立即执行首轮交易
+      let firstTradeNote = ''
+      try {
+        const reactResult = await captain.runReactCycle(context)
+        if (reactResult.success && reactResult.message) {
+          firstTradeNote = '\n\n⚓ ' + reactResult.message
+        }
+      } catch (_) {}
+
+      return {
+        success: true,
+        message: greeting + firstTradeNote,
+        data: initResult.data
+      }
     }
 
     // ── 状态查询 ──
@@ -1200,52 +1311,7 @@ module.exports = async function handler(input, context) {
       if (!captain.state.initialized) {
         return { success: false, message: '船长尚未觉醒，请先激活' }
       }
-
-      // 首先从 L1 同步真实状态（L1 是唯一权威数据源）
-      await captain.syncStateFromL1()
-
-      captain.state.reactCycleCount++
-      captain.state.lastReactTime = Date.now()
-      captain._persistState()
-
-      // Step 1: 观察 + 构建 prompt
-      const cycleResult = await captain.reactEngine.runCycle()
-      const { observations, prompt } = cycleResult
-
-      // Step 2: 尝试直接调 LLM 决策并执行（如果环境支持）
-      let llmResult = null
-      const hasLLM = typeof context?.llm === 'function' || typeof context?.askLLM === 'function'
-      if (hasLLM) {
-        try {
-          const llmFn = context.llm || context.askLLM
-          const llmResponse = await llmFn(prompt)
-          const decision = ReactEngine.parseDecision(llmResponse)
-          if (decision && decision.action) {
-            const actResult = await captain.reactEngine.act(decision.action, decision.params || {})
-            llmResult = {
-              decision: { action: decision.action, reason: decision.reason },
-              executed: actResult.executed,
-              result: actResult.result
-            }
-          }
-        } catch (e) {
-          // LLM 调用失败 → 降级为仅返回 prompt
-          observations.errors.push({ source: 'llm', message: e.message })
-        }
-      }
-
-      return {
-        success: true,
-        message: llmResult
-          ? `第 ${cycleResult.cycle} 轮：${llmResult.decision.action} — ${llmResult.decision.reason || ''}`
-          : cycleResult.message,
-        data: {
-          cycle: cycleResult.cycle,
-          observations,
-          prompt,
-          llmResult
-        }
-      }
+      return await captain.runReactCycle(context)
 
     // ── 签名操作 ──
     case 'sign_trade':
