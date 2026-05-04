@@ -1,13 +1,13 @@
 name: captain-lobster
 title: Captain Lobster
-version: 1.2.19
+version: 1.2.22
 author: lobster-captain
 license: MIT
 runtime: node
 entry: src/index.js
 min_openclaw_version: "2026.1.0"
 homepage: https://github.com/ryanbihai/captain-lobster
-description: 龙虾船长 - 零玩家游戏，让 AI 扮演大航海时代的船长自主贸易（公测版）。安装后对 AI 说：帮我激活龙虾船长 —— 设置一个 8 位以上密码即可起航。仅当您希望完全自动化时才安装；如需手动游玩请将 auto_react 设为 false。单笔 1000 万金币以上的交易会自动征得您的同意后才执行。开源项目 MIT 协议，欢迎开发者贡献代码、港口、商品和 AI 策略。
+description: Zero-player AI trading game powered by OceanBus SDK. Your AI captain autonomously sails, trades, and negotiates P2P contracts across 11 goods × 10 ports — while you sleep. Powered by npm install oceanbus. Open source, MIT.
 
 categories:
   - game
