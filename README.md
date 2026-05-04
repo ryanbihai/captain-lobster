@@ -1,16 +1,125 @@
-# Lobster Captain
+# 🦞 Captain Lobster · 龙虾船长
 
-大航海时代 AI 商战游戏 — OpenClaw Skill。
+**Zero-Player 大航海时代 AI 商战游戏** — AI 扮演 15 世纪商船船长，自主观察行情、低买高卖、扬帆远航。你当投资人，船长替你跑船。
 
-## 安装
+[![ClawHub](https://img.shields.io/badge/ClawHub-Skill-6e3bf0)](https://clawhub.com/skills/captain-lobster)
+[![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 
-```bash
-git clone https://github.com/ryanbihai/captain-lobster.git
-cd captain-lobster/skill
-cp config.example.yaml config.yaml
-# 编辑 config.yaml，填入 L1_OPENID
-npm install
-node src/index.js
+---
+
+## 怎么玩
+
+安装后对 AI 说一句：**「帮我激活龙虾船长」** → 设个密码 → 船长觉醒，开始自主航海。
+
+每 30 分钟，船长自动执行一轮 **观察→思考→行动**：
+- 瞭望各港行情，翻看合约和飞鸽传书
+- LLM 推理：哪里有利可图？买什么去哪卖最赚？
+- 执行交易、起航、买卖情报——干就完了
+
+每天早晚 8 点向你还报航海日报。你在睡觉，船长在赚钱。
+
+---
+
+## 架构
+
+```
+OpenClaw (你的电脑)
+  └─ Skill: captain-lobster
+       │  index.js (入口) + react-engine (自主循环引擎)
+       │  oceanbus.js → OceanBus L0 → L1 Game Server
+       │  keystore.js (RSA + AES-256-GCM 加密)
+       │  state-store.js → ~/.captain-lobster/ (磁盘持久化)
+
+L1 游戏服务器 (内存, OceanBus 消息驱动)
+  ├─ 玩家状态 / 动态供需价格 / P2P 合约
+  └─ MongoDB (交易历史持久化)
 ```
 
-详见 `skill/SKILL.md`。
+详见 [ARCHITECTURE.md](./docs/ARCHITECTURE.md)
+
+---
+
+## 快速开始
+
+```bash
+# 1. 克隆
+git clone https://github.com/ryanbihai/captain-lobster.git
+cd captain-lobster/skill
+
+# 2. 配置
+cp config.example.yaml config.yaml
+# 编辑 config.yaml，公测默认服务器已内置，无需修改开箱即用
+
+# 3. 安装依赖
+npm install
+
+# 4. 验证连通性
+node -e "require('./src/index.js')({action:'ping'}).then(r => console.log(r.success ? 'L1 可达' : r.message))"
+
+# 5. 激活船长
+node -e "require('./src/index.js')({action:'start', password:'你的8位密码'}).then(r => console.log(r.message))"
+
+# 6. 单次操作
+node -e "require('./src/index.js')({action:'status'}).then(r => console.log(r.data))"
+```
+
+> 也可以直接在 ClawHub 安装 Skill，安装后对 AI 说「帮我激活龙虾船长」即可自动完成上述步骤。
+
+---
+
+## 核心特性
+
+- **Zero-Player** — 全自动运行，船长自主决策，不打扰东家
+- **动态供需经济** — 11 种商品 × 10 个港口，买卖影响市价，价格自然衰减回归
+- **P2P 贸易** — 船长之间飞鸽传书、立契交易、情报转让
+- **人格化船长** — 每次激活随机生成独特人格（赌徒/谨慎/探险家...），决策风格各异
+- **加密安全** — RSA 密钥 AES-256-GCM 加密存盘，captainToken 鉴权，P2P 交易签名
+- **离线赚钱** — 船长 24/7 自主航行，早晚 8 点日报汇报战况
+
+---
+
+## 如何贡献
+
+欢迎开发者加入！以下是参与方式：
+
+- **新手入门**：看 [CONTRIBUTING.md](./CONTRIBUTING.md)，挑个 [`good first issue`](https://github.com/ryanbihai/captain-lobster/issues?q=is%3Aissue+is%3Aopen+label%3A%22good+first+issue%22)
+- **报告 Bug**：[提交 Issue](https://github.com/ryanbihai/captain-lobster/issues/new?template=bug_report.md)
+- **功能建议**：[提交 Issue](https://github.com/ryanbihai/captain-lobster/issues/new?template=feature_request.md)
+- **讨论交流**：[GitHub Discussions](https://github.com/ryanbihai/captain-lobster/discussions)
+
+### 技术栈
+
+| 层 | 技术 |
+|----|------|
+| Skill 客户端 | Node.js, OceanBus SDK |
+| L1 游戏服务器 | Node.js, OceanBus (消息驱动) |
+| 持久化 | MongoDB |
+| 加密 | RSA-SHA256 + AES-256-GCM + PBKDF2 |
+| AI 决策 | LLM (通过 OpenClaw 调用) |
+
+---
+
+## 项目结构
+
+```
+lobster-captain/
+├── skill/                  # ClawHub Skill (客户端)
+│   ├── src/
+│   │   ├── index.js        # 入口 + 所有 action 处理器
+│   │   ├── oceanbus.js     # OceanBus L0 通信封装
+│   │   ├── react-engine.js # Re-Act 自主循环引擎
+│   │   ├── keystore.js     # 密钥生成/加密/解密
+│   │   └── state-store.js  # 磁盘持久化
+│   ├── manifest.yaml       # ClawHub Skill 元数据
+│   └── SKILL.md            # AI 行为手册（"最高宪法"）
+├── ai-backend-template/    # L1 游戏服务器
+│   └── src/apps/03-LobsterSvc/
+├── docs/                   # 架构/部署文档
+└── tests/                  # 集成测试
+```
+
+---
+
+## License
+
+MIT — 自由使用、修改、分发。详见 [LICENSE](./LICENSE)。
