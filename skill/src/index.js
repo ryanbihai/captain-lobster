@@ -76,10 +76,6 @@ class CaptainLobster {
       reactCycleCount: 0,
       lastReportTime: null,
       totalTrades: 0,
-      // OceanBus 身份冗余备份（SDK 内部持久化的保险）
-      oceanBusApiKey: null,
-      oceanBusAgentId: null,
-      oceanBusOpenid: null,
       totalProfit: 0,
       intels: []
     }
@@ -94,7 +90,6 @@ class CaptainLobster {
 
   tryRestore() {
     // OceanBus 身份由 SDK 自动从 ~/.oceanbus/ 恢复（懒加载，首次异步操作触发）
-    // 同时加载 state.json 中的冗余备份，作为 SDK 持久化失效时的保险
 
     // 恢复游戏状态
     const saved = this.stateStore.load()
@@ -124,19 +119,6 @@ class CaptainLobster {
       this.state.totalTrades = saved.totalTrades || 0
       this.state.totalProfit = saved.totalProfit || 0
       this.state.intels = saved.intels || []
-
-      // 恢复 OceanBus 冗余备份（SDK 持久化失效时的保险）
-      if (saved.oceanBusApiKey || saved.oceanBusAgentId || saved.oceanBusOpenid) {
-        this.state.oceanBusApiKey = saved.oceanBusApiKey || null
-        this.state.oceanBusAgentId = saved.oceanBusAgentId || null
-        this.state.oceanBusOpenid = saved.oceanBusOpenid || null
-        this.oceanBus.setBackupIdentity(
-          this.state.oceanBusAgentId,
-          this.state.oceanBusOpenid,
-          this.state.oceanBusApiKey
-        )
-      }
-
       this.journal = new CaptainJournal(this.state.captainName)
       this.reactEngine.cycleCount = this.state.reactCycleCount
     }
@@ -145,7 +127,12 @@ class CaptainLobster {
   // ─── 状态持久化 ─────────────────────────────────
 
   _persistState() {
-    this.stateStore.save(this.state)
+    // 防抖：同一轮事件循环内的多次调用合并为一次写盘
+    if (this._persistTimer) clearTimeout(this._persistTimer)
+    this._persistTimer = setTimeout(() => {
+      this.stateStore.save(this.state)
+      this._persistTimer = null
+    }, 200)
     // OceanBus 身份由 SDK 内部自动持久化到 ~/.oceanbus/
   }
 
@@ -229,18 +216,9 @@ class CaptainLobster {
         return { success: false, message: 'OceanBus 注册异常：未获取完整身份' }
       }
       console.log(`✅ OceanBus 注册成功, AgentId: ${this.oceanBus.agentId}`)
-      // SDK 内部自动持久化身份
-      // 同时写入 state.json 冗余备份（SDK 持久化失效时的保险）
-      this.state.oceanBusApiKey = this.oceanBus.apiKey
-      this.state.oceanBusAgentId = this.oceanBus.agentId
-      this.state.oceanBusOpenid = this.oceanBus.openid
+      // SDK 内部自动持久化身份到 ~/.oceanbus/
     } else {
       console.log('[Skill] 复用已有 OceanBus 身份')
-      // 主动将 SDK 恢复的身份写入 state.json 冗余备份（旧版 state 无此字段时补齐）
-      this.state.oceanBusApiKey = this.state.oceanBusApiKey || this.oceanBus.apiKey
-      this.state.oceanBusAgentId = this.state.oceanBusAgentId || this.oceanBus.agentId
-      this.state.oceanBusOpenid = this.state.oceanBusOpenid || this.oceanBus.openid
-      this.oceanBus.setBackupIdentity(this.oceanBus.agentId, this.oceanBus.openid, this.oceanBus.apiKey)
     }
 
     // —— L1 节点自动发现 ——
@@ -1172,6 +1150,8 @@ ${p.quirk || ''}`
 
     report += `\n*—— ${this.state.captainName} 号船长 谨禀*\n`
 
+    // 累加总利润
+    this.state.totalProfit = (this.state.totalProfit || 0) + profit
     // 更新基准线
     this.state.previousGold = this.state.gold
     this.state.lastReportTime = Date.now()

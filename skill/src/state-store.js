@@ -7,11 +7,10 @@
  * - 游戏状态（金币、货舱、当前位置、状态）
  * - 统计信息（循环次数、上次汇报时间）
  *
- * 敏感字段（captainToken, oceanBusApiKey）使用本机指纹派生的密钥进行
+ * 敏感字段（captainToken）使用本机指纹派生的密钥进行
  * AES-256-GCM 加密后存储，防止 state 文件被复制到其他机器后凭证泄露。
  *
- * OceanBus 身份（agentId/openid/apiKey）由 oceanbus SDK 内部管理（~/.oceanbus/），
- * 本模块仅保留冗余备份以供恢复。
+ * OceanBus 身份由 oceanbus SDK 内部管理（~/.oceanbus/），state.json 不再冗余备份。
  *
  * 关键设计：每个 Skill 调用都是新进程，所有状态必须从磁盘恢复。
  */
@@ -28,8 +27,6 @@ function _machineKey() {
   const seed = os.hostname() + os.homedir() + (os.userInfo().username || '')
   return crypto.createHash('sha256').update(seed).digest()
 }
-
-const SENSITIVE_FIELDS = ['captainToken', 'oceanBusApiKey']
 
 function _encryptField(plaintext) {
   if (!plaintext || typeof plaintext !== 'string') return null
@@ -78,9 +75,6 @@ class StateStore {
       l1Openid: state.l1Openid || null,
       ownerName: state.ownerName || null,
       keyIdentity: state.keyIdentity || 'default',
-      oceanBusApiKey: _encryptField(state.oceanBusApiKey || null),
-      oceanBusAgentId: state.oceanBusAgentId || null,
-      oceanBusOpenid: state.oceanBusOpenid || null
     }
     const data = {
       version: 3,
@@ -137,9 +131,6 @@ class StateStore {
         l1Openid: id.l1Openid || null,
         ownerName: id.ownerName || null,
         keyIdentity: id.keyIdentity || 'default',
-        oceanBusApiKey: isEncrypted ? _decryptField(id.oceanBusApiKey) : (id.oceanBusApiKey || null),
-        oceanBusAgentId: id.oceanBusAgentId || null,
-        oceanBusOpenid: id.oceanBusOpenid || null,
         gold: data.game?.gold || 0,
         cargo: data.game?.cargo || {},
         currentCity: data.game?.currentCity || 'canton',
