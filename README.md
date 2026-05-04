@@ -4,6 +4,8 @@
 
 [![ClawHub](https://img.shields.io/badge/ClawHub-Skill-6e3bf0)](https://clawhub.com/skills/captain-lobster)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
+[![Stars](https://img.shields.io/github/stars/ryanbihai/captain-lobster)](https://github.com/ryanbihai/captain-lobster/stargazers)
+[![Clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ryanbihai/captain-lobster/master/clones.json)](https://github.com/ryanbihai/captain-lobster/graphs/traffic)
 
 ---
 
