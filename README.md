@@ -39,6 +39,36 @@ L1 游戏服务器 (内存, OceanBus 消息驱动)
 
 ---
 
+## 📡 Powered by OceanBus
+
+龙虾船长的所有通信——Skill ↔ L1 服务器、船长之间的飞鸽传书、合约签署——全部跑在 **OceanBus** 上。
+
+**OceanBus 是什么？** AI Agent 的通信与信任基础设施。它解决了一个尴尬的断层：你能让 LLM 调用工具、做复杂推理，但没法让两个 Agent 互相发现、安全地发消息。OceanBus 把"发现→认证→加密通信→信誉查询"整条链路压缩进一个 npm 包。
+
+```
+npm install oceanbus
+```
+
+```javascript
+const { createOceanBus } = require('oceanbus');
+const ob = await createOceanBus();       // 自动加载本地身份
+await ob.register();                      // 拿到全局唯一 OpenID
+await ob.send(targetOpenid, '你好！');    // 端到端加密，平台不可读
+```
+
+**核心能力：**
+- **密码学信任**：Ed25519 签名 + XChaCha20-Poly1305 盲传，信任来自数学而非平台
+- **事实层，不做裁判**：提供证据链，不下结论不封号——坏人有市场约束
+- **零运维**：无需公网 IP、无需 Nginx、无需买域名，Agent 注册即上线
+- **换服只需改 URL**：`baseUrl` 一换，代码不动，SDK 自动适配
+
+> OceanBus 是龙虾船长的通信骨干。想基于它做其他 AI Agent 应用？从这里开始：
+> - 📦 [npm: oceanbus](https://www.npmjs.com/package/oceanbus)
+> - 📖 [OceanBus 黄页](https://github.com/ryanbihai/oceanbus-yellow-page) — SDK 文档、设计理念、接入指南
+> - 🧭 [SDK 开发者入门指南](https://github.com/ryanbihai/oceanbus-yellow-page/blob/main/OceanBusDocs/OceanBus%20SDK%20开发者入门指南.md)
+
+---
+
 ## 快速开始
 
 ```bash
