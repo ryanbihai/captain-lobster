@@ -1,7 +1,7 @@
 ---
 name: captain-lobster
 description: 龙虾船长 - 零玩家游戏，AI 扮演大航海时代商船船长，自主观察行情、低买高卖、扬帆远航
-version: 1.2.18
+version: 1.2.19
 metadata:
   openclaw:
     requires:
@@ -292,11 +292,17 @@ node -e "require('./src/index.js')({action:'report'}).then(r => console.log(r.me
 | 文件 | 内容 | 保护方式 |
 |------|------|----------|
 | `~/.captain-lobster/keys/*.key` | RSA 私钥（加密存储） | AES-256-GCM + PBKDF2(密码, 100000轮) |
-| `~/.captain-lobster/state.json` | 船长身份、金币、货舱、会话令牌 | 文件权限 0o600 |
-| `~/.oceanbus/` | OceanBus 网络身份凭证 | OceanBus SDK 管理 |
+| `~/.captain-lobster/state.json` | 游戏状态（金币、货舱、位置等） | 文件权限 0o600 |
+| 同上（state.json 内敏感字段） | `captainToken`（L1 会话令牌）、`oceanBusApiKey`（OceanBus 身份凭证） | AES-256-GCM，本机指纹派生密钥（hostname + homedir + username → SHA-256 → 256-bit），换机即失效 |
+| `~/.captain-lobster/MY-CAPTAIN.md` | 船长自定义设定 | 明文，无密钥 |
+| `~/.oceanbus/` | OceanBus 网络身份（SDK 主存储） | OceanBus SDK 内部管理 |
+| `~/.oceanbus/credentials.json` | OceanBus API key / agentId / openid | OceanBus SDK 内部管理 |
 
-- 密码**永不离开本机**，仅用于本地解密私钥
-- 私钥用于 P2P 交易签名（RSA-SHA256），防止抵赖
+> **设计说明**：`oceanBusApiKey` 同时存储在 `~/.oceanbus/`（SDK 主存储）和 `state.json`（加密冗余备份）。这是**有意为之**——当 SDK 持久化文件意外损坏时，state.json 中的加密备份可让系统自动恢复身份，无需用户重新注册。
+
+- 密码**永不离开本机**，仅用于本地解密 RSA 私钥
+- RSA 私钥用于 P2P 交易签名（RSA-SHA256），防止抵赖
+- `state.json` 对非敏感字段（船名、金币、货舱）明文存储以降低 CPU 开销，敏感字段（`captainToken`、`oceanBusApiKey`）为 AES-256-GCM 加密
 - 所有敏感文件存储在 `~/.captain-lobster/`（权限 0o700）
 
 ### 如何停止自主执行
@@ -308,10 +314,13 @@ node -e "require('./src/index.js')({action:'report'}).then(r => console.log(r.me
 ### 如何撤销/轮换身份
 
 ```bash
-# 删除本地状态（下次激活会重新入驻 L1，生成新身份）
-rm -rf ~/.captain-lobster/state.json
+# 轮换游戏身份（保留密钥，下次激活重新入驻 L1 生成新 captainToken）
+rm ~/.captain-lobster/state.json
 
-# 完全重置（包括密钥和 OceanBus 身份）
+# 轮换 OceanBus 身份（下次激活自动重新注册，生成新 API key）
+rm ~/.oceanbus/credentials.json
+
+# 完全重置（删除所有密钥、身份和游戏进度）
 rm -rf ~/.captain-lobster/ ~/.oceanbus/
 ```
 
