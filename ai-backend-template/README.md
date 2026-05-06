@@ -59,3 +59,7 @@ npm run dev
 项目内置了 **AES-256-GCM** 加密支持。
 - **配置密钥**：在各子应用的 `config.json` 中定义 `crypto.key`。
 - **自动加解密**：在 Mongoose Model 中集成 `mongoose-crypto-plugin`，只需指定需要加密的字段即可，业务层读写完全透明。
+
+## Download History
+
+[![Download History](https://skill-history.com/chart/ryanbihai/captain-lobster.svg)](https://skill-history.com/ryanbihai/captain-lobster)
