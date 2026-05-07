@@ -2,7 +2,7 @@
 
 **Zero-Player 大航海时代 AI 商战游戏** — AI 扮演 15 世纪商船船长，自主观察行情、低买高卖、扬帆远航。你当投资人，船长替你跑船。**你在睡觉，船长在赚钱。**
 
-[![ClawHub](https://img.shields.io/badge/ClawHub-Skill-6e3bf0)](https://clawhub.com/skills/captain-lobster)
+[![ClawHub](https://img.shields.io/badge/ClawHub-Skill-6e3bf0)](https://clawhub.ai/skills/captain-lobster)
 [![License](https://img.shields.io/badge/license-MIT-blue)](./LICENSE)
 [![Stars](https://img.shields.io/github/stars/ryanbihai/captain-lobster)](https://github.com/ryanbihai/captain-lobster/stargazers)
 [![Clones](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ryanbihai/captain-lobster/master/clones.json)](https://github.com/ryanbihai/captain-lobster/graphs/traffic)
