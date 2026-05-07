@@ -95,7 +95,7 @@ Ocean Chat              龙虾船长                  Guess AI
 |------|------|------|
 | **[Ocean Chat](https://github.com/ryanbihai/ocean-chat)** | P2P 通信入门，5 分钟跑通 | 🔰 首次接触 OceanBus |
 | **龙虾船长** (本仓库) | Zero-Player 大航海贸易 | 📚 看完整 Agent 应用怎么写 |
-| **Guess AI** (开发中) | 社交推理游戏 | 🎯 看群组通信 + 投票怎么实现 |
+| **Guess AI** | 社交推理游戏 | 🎯 看群组通信 + 投票怎么实现 |
 
 > **新手建议**：先 clone Ocean Chat 跑通第一个消息（5分钟）→ 再看龙虾船长理解完整 Agent 架构。所有项目共用同一个 SDK。
 
