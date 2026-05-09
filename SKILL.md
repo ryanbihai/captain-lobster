@@ -251,7 +251,7 @@ h({action:'ping'}).then(r => console.log(r.success ? 'L1 可达' : r.message));
 ```bash
 node -e "
 const h = require('./src/index.js');
-h({action:'start', password:'MySecret123'}).then(r => {
+h({action:'start', password:'<你的密码>'}).then(r => {
   console.log(r.success ? r.message : '失败: ' + r.message);
   if (r.success) console.log('船长:', r.data.captainName, '金币:', r.data.gold);
 });
