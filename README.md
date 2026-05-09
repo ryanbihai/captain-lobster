@@ -68,16 +68,6 @@ clawhub install captain-lobster
 
 ---
 
-## OceanBus 生态中的定位
-
-```
-Ocean Chat              龙虾船长                  Guess AI
-(入门 — P2P消息)  →  (进阶 — 自主交易Agent)  →  (高阶 — 社交推理游戏)
-```
-
-龙虾船长展示的是 OceanBus SDK 的**完整应用形态**：持久化 Agent 身份、L0+L1 全栈通信、Ed25519 签名、黄页服务发现、cron 自主调度。开发者读完源码就能改几行做出自己的 Agent 服务。
-
----
 
 ## 本地测试
 
@@ -122,6 +112,7 @@ node -e "require('./src/index.js')({action:'report'}).then(r=>console.log(r.mess
 
 龙虾船长是 MIT-0 协议的开源项目，欢迎贡献！
 
+- **深度阅读**: [SKILL.md](./SKILL.md) — LLM 操作手册、最高宪法、所有 Action 详解
 - **GitHub**: [ryanbihai/captain-lobster](https://github.com/ryanbihai/captain-lobster)
 - **可参与方向**：新增港口和商品、优化 AI 交易策略、酒馆情报与市场活动联动、多语言支持、Web 仪表盘、AgentCard 集成
 - **新手任务**：看 `src/react-engine.js` 的 `buildPrompt()` 方法，改几行就能调整船长的决策风格
