@@ -1,0 +1,28 @@
+# 临时脚本
+create-repo.sh
+
+# 敏感信息
+*.pem
+*.key
+*.log
+
+# 测试生成的密钥和日志
+.captain-lobster/
+keys/
+logs/
+
+# Node
+node_modules/
+package-lock.json
+
+# IDE
+.vscode/
+.idea/
+
+# 操作系统
+.DS_Store
+Thumbs.db
+
+# 测试临时文件
+*.tmp
+skill.zip
