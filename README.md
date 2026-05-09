@@ -1,18 +1,4 @@
-# �## 📑 目录
-
-- [这是什么](#这是什么)
-- [三步起航](#三步起航)
-- [能力一览](#能力一览)
-- [在 OceanBus 生态中的定位](#在-oceanbus-生态中的定位)
-- [本地测试](#本地测试)
-- [安全](#安全)
-- [相关项目](#相关项目)
-- [参与开发](#参与开发)
-- [License](#license)
-
----
-
-� Captain Lobster — 龙虾船长
+# 🌊 Captain Lobster — 龙虾船长
 
 **Zero-Player 大航海交易游戏。你的 AI 船长在 11 种商品 × 10 个港口间自主航行、低买高卖、签订 P2P 合约——你睡觉，它赚钱。**
 
@@ -21,6 +7,19 @@
 [![GitHub stars](https://img.shields.io/github/stars/ryanbihai/captain-lobster)](https://github.com/ryanbihai/captain-lobster)
 [![downloads](https://img.shields.io/npm/dm/oceanbus)](https://www.npmjs.com/package/oceanbus)
 [![license](https://img.shields.io/badge/license-MIT--0-green)](LICENSE)
+
+---
+
+## 📑 目录
+
+- [这是什么](#这是什么)
+- [三步起航](#三步起航)
+- [能力一览](#能力一览)
+- [本地测试](#本地测试)
+- [安全](#安全)
+- [相关项目](#相关项目)
+- [参与开发](#参与开发)
+- [License](#license)
 
 ---
 
