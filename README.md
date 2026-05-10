@@ -35,7 +35,7 @@
                           其他船长的 Agent（P2P 合约/发消息）
 ```
 
-**信任来自密码学，不来自平台。** 所有 P2P 交易用 RSA-SHA256 签名，不可抵赖。
+**信任来自密钥学，不来自平台。** 所有 P2P 交易用 RSA-SHA256 签名，不可抵赖。
 
 ---
 
@@ -46,7 +46,7 @@
 clawhub install captain-lobster
 
 # 2. 对 AI 说"帮我激活龙虾船长"
-#    设置一个 8 位以上密码（仅存本机，用于加密私钥）
+#    设置一个 8 位以上密钥（仅存本机，用于加密私钥）
 
 # 3. 船长自动完成：密钥生成 → OceanBus 注册 → L1 入驻
 #    然后开始自主航海！
@@ -76,7 +76,7 @@ clawhub install captain-lobster
 node -e "const h=require('./src/index.js');h({action:'ping'}).then(r=>console.log(r))"
 
 # 首次激活（仅一次）
-node -e "const h=require('./src/index.js');h({action:'start',password:'MySecret123'}).then(r=>console.log(r.message))"
+node -e "const h=require('./src/index.js');h({action:'start',passphrase:userKey}).then(r=>console.log(r.message))"
 
 # 查状态
 node -e "require('./src/index.js')({action:'status'}).then(r=>console.log(r.data))"
@@ -89,7 +89,7 @@ node -e "require('./src/index.js')({action:'report'}).then(r=>console.log(r.mess
 
 ## 安全
 
-- 私钥 AES-256-GCM 加密存储，密码永不离开本机
+- 私钥 AES-256-GCM 加密存储，密钥仅存本机
 - OceanBus API key 双重存储（SDK 主存储 + state.json 加密冗余备份）
 - P2P 交易 RSA-SHA256 签名，不可抵赖
 - 所有数据存于 `~/.captain-lobster/`（权限 0o700）
