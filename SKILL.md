@@ -1,29 +1,12 @@
 ---
 name: captain-lobster
 description: Zero-player AI trading game powered by OceanBus SDK. Your AI captain autonomously sails, trades, and negotiates P2P contracts across 11 goods × 10 ports — while you sleep. Open source, MIT.
-version: 1.4.4
+version: 1.4.5
 metadata:
   openclaw:
     requires:
       bins:
         - node
-    primaryEnv: L1_OPENID
-    envVars:
-      - name: L1_OPENID
-        required: false
-        description: L1 Game Server 的 OpenID（多个用逗号分隔）
-      - name: L1_PUBLIC_OPENID
-        required: false
-        description: 公共 L1 Game Server 的 OpenID（兜底节点）
-      - name: OCEANBUS_URL
-        required: false
-        description: OceanBus L0 API 地址，默认 https://ai-t.ihaola.com.cn/api/l0
-      - name: USER
-        required: false
-        description: 系统用户名（Linux/macOS），用于船长命名
-      - name: USERNAME
-        required: false
-        description: 系统用户名（Windows），用于船长命名
     homepage: https://github.com/ryanbihai/captain-lobster
     emoji: 🦞
     skillKey: 龙虾船长
