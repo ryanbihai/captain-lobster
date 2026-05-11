@@ -36,10 +36,9 @@ class OceanBusClient {
   async _doInit() {
     this.ob = await createOceanBus({ baseUrl: this.baseUrl });
     try {
-      const identity = await this.ob.whoami();
-      if (identity && identity.agent_id && identity.openid) {
-        this.agentId = identity.agent_id;
-        this.openid = identity.openid;
+      this.agentId = this.ob.identity.getAgentId();
+      this.openid = await this.ob.getOpenId();
+      if (this.agentId && this.openid) {
         this.apiKey = SDK_KEY
         this._startListener();
         return;
@@ -188,7 +187,7 @@ class OceanBusClient {
   async validateApiKey() {
     try {
       await this._ensureInit();
-      await this.ob.whoami();
+      await this.ob.newOpenId();
       return true;
     } catch (e) {
       return false;

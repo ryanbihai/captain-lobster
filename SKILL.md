@@ -1,7 +1,7 @@
 ---
 name: captain-lobster
 description: Zero-player AI trading game powered by OceanBus SDK. Your AI captain autonomously sails, trades, and negotiates P2P contracts across 11 goods × 10 ports — while you sleep. Open source, MIT.
-version: 1.4.8
+version: 1.4.9
 metadata:
   openclaw:
     requires:
