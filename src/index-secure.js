@@ -85,7 +85,7 @@ class CaptainLobsterSecure {
       }
     }
 
-    const regResult = await this.oceanBus.register()
+    const regResult = await this.oceanBus.createIdentity()
     if (regResult.code !== 0) {
       return { success: false, message: 'OceanBus 注册失败' }
     }

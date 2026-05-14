@@ -210,7 +210,7 @@ class CaptainLobster {
       this.oceanBus.apiKey = null
       this.oceanBus.agentId = null
       this.oceanBus.openid = null
-      const regResult = await this.oceanBus.register()
+      const regResult = await this.oceanBus.createIdentity()
       if (regResult.code !== 0) {
         return { success: false, message: `OceanBus 注册失败: ${regResult.msg || '未知错误'}` }
       }

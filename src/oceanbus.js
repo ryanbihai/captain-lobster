@@ -37,7 +37,7 @@ class OceanBusClient {
     this.ob = await createOceanBus({ baseUrl: this.baseUrl });
     try {
       this.agentId = this.ob.identity.getAgentId();
-      this.openid = await this.ob.getOpenId();
+      this.openid = await this.ob.getAddress();
       if (this.agentId && this.openid) {
         this.apiKey = SDK_KEY
         this._startListener();
@@ -89,10 +89,10 @@ class OceanBusClient {
   async register() {
     try {
       await this._ensureInit();
-      const result = await this.ob.register();
+      const result = await this.ob.createIdentity();
       this.apiKey = result.api_key;
       this.agentId = result.agent_id;
-      this.openid = await this.ob.getOpenId();
+      this.openid = await this.ob.getAddress();
       this._startListener();
       return { code: 0, data: result };
     } catch (e) {
@@ -187,7 +187,7 @@ class OceanBusClient {
   async validateApiKey() {
     try {
       await this._ensureInit();
-      await this.ob.newOpenId();
+      await this.ob.createAddress();
       return true;
     } catch (e) {
       return false;
